@@ -1,0 +1,181 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "canvasdesk:block/desk_base"
+      }
+    },
+    {
+      "when": {
+        "north": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_edge",
+        "y": 0,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "north": "true"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_joint",
+        "y": 0,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "north": "false",
+        "west": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_corner_leg",
+        "y": 0,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "north": "false",
+        "west": "true",
+        "east": "true"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_boundary_support",
+        "y": 0,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "east": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_edge",
+        "y": 90,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "east": "true"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_joint",
+        "y": 90,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "east": "false",
+        "north": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_corner_leg",
+        "y": 90,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "east": "false",
+        "north": "true",
+        "south": "true"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_boundary_support",
+        "y": 90,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "south": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_edge",
+        "y": 180,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "south": "true"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_joint",
+        "y": 180,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "south": "false",
+        "east": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_corner_leg",
+        "y": 180,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_boundary_support",
+        "y": 180,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "west": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_edge",
+        "y": 270,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "west": "true"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_joint",
+        "y": 270,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "south": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_corner_leg",
+        "y": 270,
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "south": "true",
+        "north": "true"
+      },
+      "apply": {
+        "model": "canvasdesk:block/desk_boundary_support",
+        "y": 270,
+        "uvlock": true
+      }
+    }
+  ]
+}

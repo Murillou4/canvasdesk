@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "canvasdesk-test",
+  "version": "1.0.0",
+  "name": "Canvas Desk runtime validation (development only)",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": ["br.com.murillo.canvasdesk.validation.RuntimeValidation"]
+  },
+  "depends": {
+    "canvasdesk": "*"
+  }
+}

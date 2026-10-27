@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "boundary": "Asset authoring and static resource validation; Minecraft runtime validation is separate.",
+  "minecraft": "26.3",
+  "jsonFiles": 14,
+  "pngFiles": 32,
+  "connectionStates": 16,
+  "translationsPerLanguage": 50,
+  "checks": [
+    "JSON parse",
+    "PNG decode/signature",
+    "Sprite size and alpha",
+    "Model texture references",
+    "Model bounds and positive cuboid volumes",
+    "Multipart model references",
+    "All sixteen connection states",
+    "Modern client item definition",
+    "Matching PT-BR/EN keys",
+    "Nine-ingredient crafting recipe",
+    "26.3 loot modifier with custom_data preservation"
+  ],
+  "officialFormatReferences": [
+    "Minecraft 26.3 client: data/minecraft/recipe/crafting_table.json",
+    "Minecraft 26.3 client: data/minecraft/loot_table/blocks/chest.json",
+    "Minecraft 26.3 client: data/minecraft/advancement/recipes/misc/book.json",
+    "Minecraft 26.3 client: assets/minecraft/blockstates/oak_fence.json",
+    "Minecraft 26.3 client: assets/minecraft/items/crafting_table.json",
+    "Minecraft 26.3 client: assets/minecraft/atlases/gui.json"
+  ]
+}

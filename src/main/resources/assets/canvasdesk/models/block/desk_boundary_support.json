@@ -1,0 +1,109 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "canvas": "canvasdesk:block/desk_canvas",
+    "wood": "canvasdesk:block/desk_wood",
+    "end": "canvasdesk:block/desk_endgrain",
+    "copper": "canvasdesk:block/desk_copper",
+    "circuit": "canvasdesk:block/desk_circuit",
+    "particle": "canvasdesk:block/desk_wood"
+  },
+  "elements": [
+    {
+      "from": [
+        7,
+        1.5,
+        0.75
+      ],
+      "to": [
+        9,
+        11.5,
+        2.75
+      ],
+      "faces": {
+        "down": {
+          "texture": "#end"
+        },
+        "up": {
+          "texture": "#end"
+        },
+        "north": {
+          "texture": "#wood"
+        },
+        "south": {
+          "texture": "#wood"
+        },
+        "west": {
+          "texture": "#wood"
+        },
+        "east": {
+          "texture": "#wood"
+        }
+      }
+    },
+    {
+      "from": [
+        6.75,
+        0,
+        0.5
+      ],
+      "to": [
+        9.25,
+        1.5,
+        3
+      ],
+      "faces": {
+        "down": {
+          "texture": "#wood"
+        },
+        "up": {
+          "texture": "#wood"
+        },
+        "north": {
+          "texture": "#wood"
+        },
+        "south": {
+          "texture": "#wood"
+        },
+        "west": {
+          "texture": "#wood"
+        },
+        "east": {
+          "texture": "#wood"
+        }
+      }
+    },
+    {
+      "from": [
+        6.75,
+        1.5,
+        0.5
+      ],
+      "to": [
+        9.25,
+        2.5,
+        3
+      ],
+      "faces": {
+        "down": {
+          "texture": "#copper"
+        },
+        "up": {
+          "texture": "#copper"
+        },
+        "north": {
+          "texture": "#copper"
+        },
+        "south": {
+          "texture": "#copper"
+        },
+        "west": {
+          "texture": "#copper"
+        },
+        "east": {
+          "texture": "#copper"
+        }
+      }
+    }
+  ]
+}

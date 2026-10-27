@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "group": "canvasdesk",
+  "pattern": [
+    "PPP",
+    "CRC",
+    "WWW"
+  ],
+  "key": {
+    "P": "minecraft:paper",
+    "C": "minecraft:copper_ingot",
+    "R": "minecraft:redstone",
+    "W": "#minecraft:planks"
+  },
+  "result": {
+    "id": "canvasdesk:desk",
+    "count": 1
+  }
+}

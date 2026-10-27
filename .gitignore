@@ -1,0 +1,8 @@
+.gradle/
+build/
+run/
+.codex-temp/
+artifacts/
+*.log
+.idea/
+*.iml

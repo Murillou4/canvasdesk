@@ -1,0 +1,73 @@
+# Canvas Desk — mod independente para Minecraft 26.3
+
+## 1. Projeto e versão
+
+Criar o projeto em `C:\Users\muril\Desktop\Minecraft Mods\CanvasDesk`, com identificador `canvasdesk`, separado do MurilloUtils conforme sua escolha.
+
+- Usar Minecraft **26.3**, confirmado como versão estável atual, e **JDK 25**. [Manifesto oficial](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)
+- Fixar Fabric Loader **0.19.5**, Fabric API **0.164.0+26.3**, Loom **1.17.21** e Gradle **9.6.0**, sem dependências snapshot. [Fabric para 26.3](https://fabricmc.net/2026/09/15/263.html), [Fabric API](https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/0.164.0%2B26.3/)
+- Usar `net.fabricmc.fabric-loom` e gerar o artefato por `jar`: essa geração do Minecraft dispensa Yarn e remapeamento. [Orientação oficial](https://www.fabricmc.net/2026/03/14/261.html)
+- Separar blocos, itens, documento, armazenamento, rede e cliente. Aplicar os princípios de organização da skill indicada, adaptados ao Canvas Desk.
+
+## 2. Mesa modular e preservação dos documentos
+
+- Cada módulo ocupará um bloco e conectará aos quatro vizinhos horizontais na mesma altura. Expansões terão processamento incremental, sem quantidade máxima de módulos imposta pelo mod.
+- Documento e blocos terão identidades distintas. O documento guardará os elementos; blocos e itens carregarão referências e coordenadas de projeção.
+- O editor terá espaço virtual livre. Cada módulo mostrará uma região de **256 × 256 unidades** desse espaço; ampliar a mesa revelará novas regiões sem redimensionar desenhos.
+- **Partes desconectadas continuarão compartilhando o documento**, conforme escolhido. Descarregar chunks não contará como desmontagem.
+- Quebrar a mesa produzirá um item vinculado ao documento. Recolocá-lo isoladamente restaurará a região anterior; conectado a outra superfície, adotará a projeção dessa superfície.
+- Reconectar partes do mesmo documento com projeções incompatíveis preservará a projeção mais antiga. A interface avisará que a região exibida foi ajustada; os desenhos permanecerão intactos.
+- Unir documentos diferentes preservará todos os elementos e alinhará suas coordenadas pela posição das mesas. Sobreposições permanecerão em grupos selecionáveis.
+- Documentos continuarão armazenados mesmo sem blocos ou itens recuperáveis. `/canvasdesk list` e `/canvasdesk recover <id>` permitirão recuperação pelos donos e operadores.
+
+O armazenamento usará formato versionado, regiões carregadas sob demanda, snapshots e registro recuperável de operações. Confirmar alterações somente após gravação durável. Após uma queda, reconciliar os blocos com os chunks sem apagar documentos; uma união confirmada continuará válida mesmo que o Minecraft reverta a colocação do bloco de ligação.
+
+## 3. Editor, superfície e identidade visual
+
+Implementar uma tela nativa do Minecraft com:
+
+- Desenho livre, paleta de cores, cor personalizada e espessura.
+- Texto multilinha, notas e listas com caixas de seleção.
+- Retângulos, elipses, linhas, setas e conectores que acompanhem os elementos ligados.
+- Seleção individual ou múltipla, movimentação, redimensionamento aplicável e edição de texto.
+- Borracha que remove elementos completos, exclusão, desfazer e refazer.
+- Zoom pelo cursor, navegação por arraste e enquadramento do conteúdo.
+- Feedback de salvamento, conflitos e acesso somente leitura.
+
+Usar barra compacta, ícones próprios, fonte do jogo, atalhos com indicação visual e adaptação a diferentes resoluções. A edição será acessível por clique direito, sem exigir uma ferramenta adicional.
+
+A superfície exibirá o conteúdo real com o mesmo sistema de coordenadas do editor. Usar renderização por regiões, recorte nos limites dos módulos, cache limitado por memória e simplificação à distância. Desenhos atravessarão emendas sem aparecer sobre espaços vazios. Conferir as assinaturas de renderização nas dependências 26.3, pois a documentação pública ainda apresenta exemplos 26.2.
+
+Criar modelos JSON multipart e texturas pixeladas próprias: tampo claro, estrutura de madeira escura e encaixes de cobre, com bordas e suportes adaptados às conexões. Entregar fontes editáveis dos recursos, ícones, traduções PT-BR/EN, loot table e modelo de inventário.
+
+A temática será uma bancada de escribas movida por redstone. A receita produzirá um módulo com três papéis na primeira linha, cobre–redstone–cobre na segunda e três tábuas na terceira.
+
+## 4. Multiplayer e permissões
+
+- O criador será dono do documento. Donos poderão convidar e remover editores; outros jogadores próximos terão acesso somente leitura.
+- Permissões controlarão o documento. Quebra dos blocos seguirá as regras normais do mundo, preservando os dados.
+- Mesas pertencentes exclusivamente ao mesmo jogador poderão unir automaticamente quando ele realizar a conexão.
+- Uniões envolvendo donos diferentes exigirão **aprovação de todos os donos**, conforme escolhido. A confirmação mostrará os donos e convidados que terão acesso ao resultado.
+- Após a união, preservar copropriedade e reunir os convidados autorizados. Mudanças na estrutura ou nas permissões invalidarão aprovações pendentes.
+- Enquanto houver aprovação pendente, manter os documentos separados e sinalizar a emenda.
+
+O servidor validará sessões, alcance, permissões e operações. Sincronizar regiões visíveis e alterações incrementais; identificar operações para impedir reaplicação. Alterações simultâneas em elementos diferentes coexistirão; conflitos no mesmo elemento terão aviso explícito. Desfazer será individual e não sobrescreverá alterações posteriores de outro jogador.
+
+As interfaces centrais serão documentos e elementos tipados com UUID, operações revisionadas, referências dos módulos e mensagens de sessão, sincronização e permissões.
+
+## 5. Implementação, testes e entrega
+
+Executar em incrementos verificáveis: mesa e projeção real; persistência e topologia; ferramentas; colaboração e permissões; acabamento e distribuição.
+
+A aceitação exigirá:
+
+- Build limpo, recursos completos e carregamento em servidor dedicado sem dependências de cliente.
+- Fabricação e posicionamento reais; mesas retangulares, em L, com buracos e atravessando chunks.
+- Desenhos contínuos entre módulos, expansão, desmontagem, reposicionamento e recuperação após perda dos itens.
+- Todas as ferramentas exercitadas no cliente, incluindo texto acentuado, conectores, checklist e histórico.
+- Persistência após reinício, descarregamento de chunks e interrupções durante gravação ou união.
+- Dois clientes verificando edição conjunta, conflitos, leitura, convites e aprovação de união.
+- Cenário de carga com mesa de 32 × 32 módulos e 10 mil elementos, registrando desempenho e uso de memória.
+- Capturas do mundo e das telas, logs atuais e relatório distinguindo `PASS`, `FAIL` e `NOT_RUN`.
+
+Entregar JAR **1.0.0**, fontes, README de instalação, receitas, controles e recuperação, além de `VALIDATION_STATUS.md` com evidências. Validar em mundos descartáveis e encerrar os processos de teste. A instalação na instância pessoal ficará fora desta entrega; o JAR será disponibilizado pronto para instalar.

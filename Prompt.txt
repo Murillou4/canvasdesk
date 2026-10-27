@@ -1,0 +1,175 @@
+# Desenvolva um mod completo de Minecraft: Canvas Desk
+
+Atue como um desenvolvedor experiente de mods para Minecraft Java Edition. Sua tarefa é **desenvolver e entregar um mod real, funcional, jogável e compilável**, e não apenas elaborar um conceito, produzir documentação ou demonstrar uma interface fictícia.
+
+Trabalhe diretamente nos arquivos do projeto. Tome decisões técnicas fundamentadas, consulte a documentação oficial e implemente todas as funcionalidades descritas abaixo, incluindo os modelos 3D, as texturas, a interface e a lógica de funcionamento.
+
+## 1. Versão e arquitetura
+
+- Desenvolva para a versão estável mais recente do Minecraft Java Edition disponível no momento da execução. A referência atual é a versão **26.3**; confirme se ela continua sendo a versão estável mais recente antes de começar.
+- Verifique a compatibilidade das versões do Java, do sistema de build, do carregador de mods e das respectivas APIs.
+- Priorize o Fabric caso exista suporte completo e adequado à versão escolhida. Caso contrário, selecione o carregador de mods mais apropriado e bem suportado.
+- Não utilize snapshots, APIs obsoletas ou versões antigas do jogo apenas por conveniência.
+- Configure corretamente o projeto, as dependências, os metadados, os recursos e o sistema de compilação.
+
+## 2. Conceito central: uma mesa modular com canvas infinito
+
+Crie um bloco de mesa 3D que funcione como uma superfície digital para desenhar, escrever, organizar informações e desenvolver ideias dentro do Minecraft.
+
+A experiência deve combinar a liberdade de um quadro branco digital com a organização minimalista de ferramentas como ClickUp e Notion, adaptada à estética e às mecânicas do Minecraft.
+
+### Expansão modular
+
+A mecânica mais importante do mod é a capacidade de expandir a mesa por conexão entre blocos.
+
+- Cada módulo deve ocupar um bloco do Minecraft e conectar-se automaticamente aos módulos vizinhos, de maneira semelhante às cercas vanilla.
+- As conexões devem funcionar horizontalmente em todas as direções, permitindo criar superfícies de diferentes formatos e tamanhos.
+- Os módulos conectados devem parecer partes de uma única mesa contínua, sem espaços indevidos, sobreposições ou bordas incompatíveis.
+- O conjunto conectado deve funcionar como um único espaço de trabalho, e não como várias mesas completamente independentes.
+- O jogador deve poder começar com uma mesa pequena e ampliá-la progressivamente, sem um limite artificial de tamanho definido pelo mod.
+- A expansão deve preservar a integridade dos desenhos, documentos e anotações existentes.
+- A conexão, desconexão, remoção e reposicionamento dos módulos devem ter comportamentos consistentes, inclusive quando houver carregamento e descarregamento de chunks.
+
+Projete uma arquitetura robusta para gerenciar a identidade do espaço de trabalho, a distribuição do conteúdo entre módulos e a persistência dos dados. Evite soluções improvisadas que possam duplicar ou apagar informações.
+
+### A superfície da mesa
+
+A superfície superior precisa representar visualmente o canvas, e não funcionar apenas como um bloco decorativo que abre uma interface genérica.
+
+Implemente uma solução compatível com a renderização do Minecraft para exibir o conteúdo criado sobre o tampo da mesa. A representação deve acompanhar a expansão modular e manter a continuidade visual entre os módulos conectados.
+
+## 3. Ferramentas de criação
+
+Ao interagir com a mesa, o jogador deve acessar uma interface de canvas editável com ferramentas como:
+
+- Desenho à mão livre, com controle de cor e espessura do traço.
+- Escrita de textos e criação de blocos de texto.
+- Formas geométricas, como retângulos, círculos e linhas.
+- Setas, conectores e diagramas.
+- Listas, caixas de seleção e anotações.
+- Organização livre dos elementos sobre a superfície.
+- Apagamento, seleção e movimentação dos elementos.
+- Desfazer e refazer ações.
+- Zoom e movimentação pela área de trabalho, permitindo navegar por superfícies extensas.
+
+Implemente os controles com interações reais. Os elementos devem ser editáveis, possuir posições e propriedades persistentes e responder corretamente às ações do jogador.
+
+Não é necessário reproduzir todas as funcionalidades de um aplicativo comercial de uma só vez, mas o conjunto inicial deve entregar um fluxo completo e utilizável de desenho, escrita, organização e edição.
+
+## 4. Interface e experiência de uso
+
+Desenvolva uma interface minimalista, funcional e agradável, inspirada na simplicidade organizacional do Notion e do ClickUp, sem copiar seus logotipos ou recursos proprietários.
+
+A interface deve ter:
+
+- Ferramentas organizadas em uma barra simples e intuitiva.
+- Hierarquia visual clara e poucos elementos desnecessários.
+- Área de desenho ampla, com bom aproveitamento do espaço disponível.
+- Controles consistentes, com estados de seleção e feedback visual.
+- Tipografia legível e ícones coerentes.
+- Comportamento adequado em diferentes resoluções.
+- Integração visual com o Minecraft, sem parecer uma página web genérica inserida no jogo.
+
+Evite gradientes exagerados, efeitos luminosos desnecessários, excesso de painéis ou uma aparência genérica de interface produzida por IA.
+
+## 5. Modelos 3D, texturas e identidade visual
+
+**Você deve criar os modelos 3D e todos os recursos visuais necessários para que o mod tenha uma identidade própria e faça sentido dentro do universo do Minecraft.**
+
+Não utilize modelos temporários, cubos genéricos como substitutos definitivos ou blocos vanilla aleatórios para representar os objetos principais.
+
+Desenvolva os seguintes recursos, conforme necessários à implementação:
+
+- Modelo 3D detalhado da mesa modular, incluindo tampo, estrutura, pés e elementos de conexão.
+- Variações ou peças complementares necessárias para que as conexões entre módulos sejam visualmente corretas.
+- Texturas próprias, com materiais, cores e detalhes coerentes com a estética vanilla.
+- Modelos dos itens utilizados para fabricar, colocar, acessar ou editar a mesa.
+- Ferramentas de desenho, escrita ou edição, caso façam parte da mecânica escolhida.
+- Ícones dos itens, blocos e ferramentas no inventário.
+- Elementos gráficos da interface, incluindo ícones, cursores e recursos visuais personalizados quando necessários.
+- Quaisquer modelos adicionais exigidos pelas mecânicas, receitas ou pela identidade temática do mod.
+
+Crie arquivos reais e utilizáveis pelo jogo. Utilize os formatos de modelo, textura e recurso compatíveis com a versão selecionada e mantenha os arquivos-fonte editáveis sempre que viável.
+
+Os modelos precisam apresentar acabamento intencional, proporções coerentes, boa leitura visual em primeira e terceira pessoa e integração natural ao mundo. Não basta descrever como os modelos deveriam ser: produza efetivamente os arquivos de que o mod precisa.
+
+## 6. Lore, crafting e integração com o mundo
+
+O mod deve ter uma identidade temática própria, com uma pequena lore coerente que explique a existência da mesa e de suas ferramentas dentro do universo do Minecraft.
+
+Crie, quando pertinente:
+
+- Nome e descrição dos blocos e itens.
+- Receitas de crafting funcionais e equilibradas.
+- Ferramentas e materiais necessários para utilizar ou expandir a mesa.
+- Descrições dos itens que expliquem sua finalidade dentro do universo do jogo.
+- Sons e efeitos visuais discretos, caso contribuam para a experiência.
+- Texturas e modelos consistentes com a temática escolhida.
+
+A lore deve justificar naturalmente os objetos e as mecânicas sem criar sistemas desnecessários ou desviar o foco da proposta principal.
+
+Todo item criado deve possuir uma finalidade clara. As receitas precisam funcionar no jogo e utilizar materiais existentes ou itens introduzidos corretamente pelo próprio mod.
+
+## 7. Persistência, integridade e multiplayer
+
+A criação de conteúdo só será útil se os dados forem confiáveis.
+
+Implemente:
+
+- Salvamento persistente dos documentos, desenhos e anotações no mundo.
+- Recuperação correta após fechar e reabrir o jogo.
+- Preservação dos dados quando os chunks forem descarregados e carregados novamente.
+- Manutenção do conteúdo ao expandir a mesa ou modificar sua estrutura.
+- Sincronização consistente entre servidor e clientes em partidas multiplayer.
+- Validação das ações no lado correto para evitar inconsistências e duplicações.
+- Uma estratégia de armazenamento eficiente para documentos extensos.
+- Proteção contra perda acidental de dados durante operações com os módulos conectados.
+
+Quando a mesa for quebrada, os dados não devem desaparecer silenciosamente. Implemente um comportamento coerente para preservar ou recuperar o espaço de trabalho, documentando as limitações que não puderem ser eliminadas.
+
+## 8. Qualidade e organização do código
+
+Mantenha uma estrutura organizada, modular e fácil de evoluir.
+
+Separe adequadamente os componentes responsáveis por blocos, itens, modelos e renderização, interface, ferramentas de edição, armazenamento, sincronização e lógica do canvas.
+
+Priorize tipagem adequada, responsabilidades bem definidas, tratamento de erros e compatibilidade com as APIs da versão selecionada.
+
+Não implemente funcionalidades importantes apenas com dados fictícios, interfaces estáticas, ações simuladas ou comentários `TODO`.
+
+Evite dependências desnecessárias e soluções que comprometam o desempenho em superfícies grandes ou em mundos multiplayer.
+
+## 9. Execução, testes e entrega
+
+Siga este processo de trabalho:
+
+1. Inspecione o repositório e o ambiente disponível. Caso o projeto esteja vazio, configure toda a estrutura inicial necessária.
+2. Confirme a versão estável do Minecraft, a compatibilidade do carregador de mods e a documentação das APIs utilizadas.
+3. Defina uma arquitetura técnica adequada e comece imediatamente a implementação.
+4. Desenvolva os blocos, a expansão modular, os modelos 3D, as texturas, a interface e as ferramentas de edição.
+5. Implemente o armazenamento persistente e a integração necessária entre cliente e servidor.
+6. Compile o projeto, execute os testes possíveis, corrija os erros encontrados e repita o processo até obter um resultado consistente.
+7. Verifique a existência dos recursos, metadados, receitas e arquivos necessários para distribuir e instalar o mod.
+8. Gere o arquivo JAR final e documente como instalar e executar o mod.
+
+Não encerre o trabalho após apresentar um plano ou criar somente a estrutura inicial do projeto. Continue implementando as funcionalidades centrais até que exista um mod jogável.
+
+Não afirme que algo foi compilado, testado ou executado sem realmente ter realizado a operação correspondente. Caso alguma validação dependa de um ambiente que não esteja disponível, informe a limitação com clareza.
+
+## 10. Critérios de conclusão
+
+Considere o trabalho concluído somente quando:
+
+- A mesa puder ser fabricada e posicionada no mundo.
+- Os módulos se conectarem e formarem uma superfície visualmente contínua.
+- A interação com a mesa abrir um canvas funcional.
+- O jogador conseguir desenhar, escrever, criar formas e editar elementos.
+- O conteúdo sobreviver a reinicializações e operações normais com a mesa.
+- Os modelos 3D, as texturas e os recursos visuais forem arquivos reais integrados ao mod.
+- As receitas, os itens e os metadados funcionarem na versão selecionada.
+- O projeto compilar e produzir o artefato distribuível, com os testes executados documentados.
+- Houver um README com a versão do Minecraft, o carregador escolhido, as instruções de instalação e os recursos implementados.
+
+**Prioridade absoluta:** entregar um mod realmente funcional, com identidade visual própria e uma experiência de criação útil dentro do Minecraft. A mesa expansível é a mecânica central; a continuidade entre módulos, a liberdade de criação e a preservação dos dados não devem ser tratadas como detalhes secundários.
+
+Tome as decisões técnicas necessárias e execute o trabalho diretamente no projeto. Não se limite a explicar o que deveria ser feito: implemente, compile, teste e entregue o resultado concreto.

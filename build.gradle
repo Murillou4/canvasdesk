@@ -1,0 +1,76 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.17.21'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+base { archivesName = project.archives_base_name }
+
+repositories { mavenCentral() }
+
+loom {
+    splitEnvironmentSourceSets()
+    mods {
+        canvasdesk {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+    runs {
+        client {
+            vmArg '-Dcanvasdesk.selftest=' + providers.gradleProperty('canvasdesk_selftest').getOrElse('false')
+            programArgs '--width', '1280', '--height', '720'
+        }
+        server { programArg 'nogui' }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'canvasdesk-test'
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = true
+        clearRunDirectory = false
+        username = 'CanvasDeskTest'
+    }
+}
+sourceSets.gametest.compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
+sourceSets.gametest.runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
+loom.runs.clientGameTest {
+    vmArg '-Xmx2G'
+    vmArg '-Dcanvasdesk.selftest=true'
+    vmArg '-Dcanvasdesk.reportDir=' + layout.projectDirectory.dir('artifacts/runtime').asFile.absolutePath
+    programArgs '--width', '1280', '--height', '720'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+    options.encoding = 'UTF-8'
+}
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+processResources {
+    def version = project.version
+    inputs.property 'version', version
+    filesMatching('fabric.mod.json') { expand 'version': version }
+}
+test { useJUnitPlatform() }
+jar { from('LICENSE') }

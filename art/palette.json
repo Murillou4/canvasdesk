@@ -1,0 +1,15 @@
+{
+  "paper": "#e8dfc7",
+  "paper_light": "#ece4cf",
+  "paper_fiber": "#e3dac3",
+  "wood": "#4a342a",
+  "wood_dark": "#35261f",
+  "wood_light": "#634737",
+  "copper": "#b97751",
+  "copper_light": "#dda071",
+  "copper_dark": "#885138",
+  "ink": "#34342e",
+  "muted": "#79766b",
+  "sage": "#758770",
+  "redstone": "#974f40"
+}
