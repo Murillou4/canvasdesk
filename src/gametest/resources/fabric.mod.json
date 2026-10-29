@@ -5,6 +5,7 @@
   "name": "Canvas Desk runtime validation (development only)",
   "environment": "client",
   "entrypoints": {
+    "client": ["br.com.murillo.canvasdesk.validation.PerformanceProbe"],
     "fabric-client-gametest": ["br.com.murillo.canvasdesk.validation.RuntimeValidation"]
   },
   "depends": {

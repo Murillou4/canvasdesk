@@ -3,6 +3,7 @@ package br.com.murillo.canvasdesk.validation;
 import br.com.murillo.canvasdesk.CanvasDesk;
 import br.com.murillo.canvasdesk.block.DeskBlock;
 import br.com.murillo.canvasdesk.block.DeskBlockEntity;
+import br.com.murillo.canvasdesk.block.BoardPlane;
 import br.com.murillo.canvasdesk.server.DeskServer;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -36,8 +37,8 @@ import java.util.UUID;
 
 /** Assertions run on the real integrated server, using Minecraft items, loot and blocks. */
 public final class GameplayChecks {
-    public static final BlockPos PRIMARY = new BlockPos(15, 80, 15);
-    public static final BlockPos FOREIGN = new BlockPos(19, 80, 15);
+    public static final BlockPos PRIMARY = new BlockPos(15, 82, 15);
+    public static final BlockPos FOREIGN = new BlockPos(19, 82, 15);
     public static final BlockPos RECOVERY = new BlockPos(23, 80, 20);
     private static final UUID FOREIGN_OWNER = UUID.nameUUIDFromBytes("canvasdesk-offline-owner".getBytes(java.nio.charset.StandardCharsets.UTF_8));
     private static final UUID INVITED = UUID.nameUUIDFromBytes("canvasdesk-offline-editor".getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -55,7 +56,7 @@ public final class GameplayChecks {
     public static void setupRectangle(MinecraftServer server) {
         ServerPlayer player = player(server); ServerLevel level = player.level();
         floor(level, 10, 10, 26, 23);
-        player.teleportTo(16.5, 80, 11.5);
+        player.teleportTo(16.5, 80, 18.5);player.setYRot(180);
         player.setGameMode(GameType.SURVIVAL);
         CraftingInput input = CraftingInput.of(3, 3, List.of(
             new ItemStack(Items.PAPER), new ItemStack(Items.PAPER), new ItemStack(Items.PAPER),
@@ -70,43 +71,66 @@ public final class GameplayChecks {
         require(workspace != null, "Placed desk has no persistent workspace");
         player.setGameMode(GameType.CREATIVE);
         place(player, PRIMARY.east(), new ItemStack(CanvasDesk.DESK_ITEM));
-        place(player, PRIMARY.south(), new ItemStack(CanvasDesk.DESK_ITEM));
-        place(player, PRIMARY.south().east(), new ItemStack(CanvasDesk.DESK_ITEM));
+        place(player, PRIMARY.below(), new ItemStack(CanvasDesk.DESK_ITEM));
+        place(player, PRIMARY.below().east(), new ItemStack(CanvasDesk.DESK_ITEM));
         measurements.addProperty("craftingRecipeId", recipe.id().identifier().toString());
     }
 
     public static void assertRectangle(MinecraftServer server) {
         ServerLevel level = player(server).level();
         for (int x = 0; x < 2; x++) for (int z = 0; z < 2; z++) {
-            BlockPos pos = PRIMARY.offset(x, 0, z); assertProjection(server, pos, x * 256, z * 256);
-            require(level.getBlockState(pos).getValue(DeskBlock.EAST) == (x == 0), "East connection mismatch");
-            require(level.getBlockState(pos).getValue(DeskBlock.SOUTH) == (z == 0), "South connection mismatch");
+            BlockPos pos = PRIMARY.offset(x, -z, 0); assertProjection(server, pos, x * 256, z * 256);
+            require(level.getBlockState(pos).getValue(DeskBlock.RIGHT) == (x == 0), "East connection mismatch");
+            require(level.getBlockState(pos).getValue(DeskBlock.DOWN) == (z == 0), "South connection mismatch");
         }
         require((PRIMARY.getX() >> 4) != (PRIMARY.east().getX() >> 4), "Fixture must really cross a chunk border");
-        require((PRIMARY.getZ() >> 4) != (PRIMARY.south().getZ() >> 4), "Fixture must cross the second chunk border too");
+        require(level.getBlockState(PRIMARY).getValue(DeskBlock.FACING)==Direction.SOUTH, "Placed board must face the player");
+    }
+    public static void setupOrientations(MinecraftServer server) {
+        ServerPlayer actor=player(server);floor(actor.level(),30,10,60,20);int i=0;
+        for(Direction facing:new Direction[]{Direction.NORTH,Direction.EAST,Direction.SOUTH,Direction.WEST}) {
+            BlockPos p=new BlockPos(35+6*i++,80,15);
+            place(actor,p,new ItemStack(CanvasDesk.DESK_ITEM),facing);
+            place(actor,p.relative(BoardPlane.right(facing)),new ItemStack(CanvasDesk.DESK_ITEM),facing);
+            // The player looks the other way: clicking the existing panel must still inherit its front.
+            place(actor,p.above(),new ItemStack(CanvasDesk.DESK_ITEM),facing.getOpposite());
+        }
+    }
+    public static void assertOrientations(MinecraftServer server) {
+        ServerLevel level=player(server).level();int i=0;
+        for(Direction facing:new Direction[]{Direction.NORTH,Direction.EAST,Direction.SOUTH,Direction.WEST}) {
+            BlockPos p=new BlockPos(35+6*i++,80,15);DeskBlockEntity a=desk(level,p);
+            DeskBlockEntity right=desk(level,p.relative(BoardPlane.right(facing))),above=desk(level,p.above());
+            require(level.getBlockState(p).getValue(DeskBlock.FACING)==facing,"Board orientation "+facing);
+            require(level.getBlockState(p.above()).getValue(DeskBlock.FACING)==facing,"Expansion must inherit orientation "+facing);
+            require(a.workspace.equals(right.workspace)&&a.workspace.equals(above.workspace),"L topology "+facing);
+            require(right.tileX-a.tileX==256&&right.tileY==a.tileY,"Right basis "+facing);
+            require(above.tileY-a.tileY==-256&&above.tileX==a.tileX,"Up basis "+facing);
+            require(!level.getBlockState(p.above()).getValue(DeskBlock.BASE),"Upper module must have no tray/feet");
+        }
     }
 
     public static void expandRing(MinecraftServer server) {
         ServerPlayer player = player(server);
         for (int x = 0; x < 3; x++) for (int z = 0; z < 3; z++) {
             if (x == 1 && z == 1) continue;
-            BlockPos pos = PRIMARY.offset(x, 0, z);
+            BlockPos pos = PRIMARY.offset(x, -z, 0);
             if (!player.level().getBlockState(pos).is(CanvasDesk.DESK)) place(player, pos, new ItemStack(CanvasDesk.DESK_ITEM));
         }
-        require(player.level().destroyBlock(PRIMARY.offset(1, 0, 1), false, player, 512), "Could not remove center module");
+        require(player.level().destroyBlock(PRIMARY.offset(1, -1, 0), false, player, 512), "Could not remove center module");
     }
 
     public static void assertRing(MinecraftServer server) {
         ServerLevel level = player(server).level();
-        require(level.getBlockState(PRIMARY.offset(1, 0, 1)).isAir(), "Ring hole must remain actual air");
-        for (int x = 0; x < 3; x++) for (int z = 0; z < 3; z++) if (x != 1 || z != 1) assertProjection(server, PRIMARY.offset(x, 0, z), x * 256, z * 256);
-        require(!level.getBlockState(PRIMARY.east()).getValue(DeskBlock.SOUTH), "Surface connected across the empty hole");
-        require(!level.getBlockState(PRIMARY.south()).getValue(DeskBlock.EAST), "Surface connected sideways across the empty hole");
+        require(level.getBlockState(PRIMARY.offset(1, -1, 0)).isAir(), "Ring hole must remain actual air");
+        for (int x = 0; x < 3; x++) for (int z = 0; z < 3; z++) if (x != 1 || z != 1) assertProjection(server, PRIMARY.offset(x, -z, 0), x * 256, z * 256);
+        require(!level.getBlockState(PRIMARY.east()).getValue(DeskBlock.DOWN), "Surface connected across the empty hole");
+        require(!level.getBlockState(PRIMARY.below()).getValue(DeskBlock.RIGHT), "Surface connected sideways across the empty hole");
     }
 
     public static void detachAndReposition(MinecraftServer server) {
         ServerPlayer player = player(server); ServerLevel level = player.level();
-        BlockPos removed = PRIMARY.offset(2, 0, 2), isolated = new BlockPos(23, 80, 18);
+        BlockPos removed = PRIMARY.offset(2, -2, 0), isolated = new BlockPos(23, 80, 18);
         List<ItemStack> preview = net.minecraft.world.level.block.Block.getDrops(level.getBlockState(removed), level, removed, desk(level, removed));
         require(preview.size() == 1 && linkedTo(preview.getFirst(), workspace, server), "Loot table did not preserve workspace component");
         ItemStack dropped = breakAndCollect(player, removed);
@@ -173,7 +197,18 @@ public final class GameplayChecks {
         require(merges.size() == 1, "Physical cross-owner join did not create one approval request");
         pendingMerge = UUID.fromString(merges.get(0).getAsJsonObject().get("id").getAsString());
         require(!service.store.resolve(workspace).equals(service.store.resolve(foreignWorkspace)), "Different owners merged without unanimous consent");
-        require(!player.level().getBlockState(bridge).getValue(DeskBlock.EAST), "Pending join must keep a visible seam");
+        require(!player.level().getBlockState(bridge).getValue(DeskBlock.RIGHT), "Pending join must keep a visible seam");
+    }
+    public static void prepareRealPeerMerge(MinecraftServer server,UUID peer) {
+        ServerPlayer actor=player(server);DeskServer service=DeskServer.get(server);
+        foreignWorkspace=service.store.create(peer);
+        success(service.store.action(foreignWorkspace,peer,edit(createElement("NOTE",24,24,"Documento do segundo cliente"))));
+        CompoundTag reference=new CompoundTag();reference.putString("workspace",foreignWorkspace.toString());
+        ItemStack linked=new ItemStack(CanvasDesk.DESK_ITEM);linked.set(DataComponents.CUSTOM_DATA,CustomData.of(reference));
+        place(actor,FOREIGN,linked);
+        place(actor,PRIMARY.east(2),new ItemStack(CanvasDesk.DESK_ITEM));
+        place(actor,PRIMARY.east(3),new ItemStack(CanvasDesk.DESK_ITEM));
+        require(view(server,workspace,actor.getUUID()).getAsJsonArray("merges").size()==1,"Real peer merge must wait for both owners");
     }
 
     public static void approveMergeOnServer(MinecraftServer server) {
@@ -190,7 +225,7 @@ public final class GameplayChecks {
 
     public static void open(MinecraftServer server, BlockPos pos) {
         ServerPlayer player = player(server);
-        player.teleportTo(16.5, 80, 11.5);
+        player.teleportTo(16.5, 80, 18.5);player.setYRot(180);
         DeskServer.get(server).open(player, desk(player.level(), pos));
     }
 
@@ -220,8 +255,8 @@ public final class GameplayChecks {
 
     public static void placeLoadRow(MinecraftServer server, int row) {
         ServerPlayer player = player(server); long start = System.nanoTime();
-        for (int column = 0; column < 32; column++) place(player, new BlockPos(64 + column, 80, 40 + row), new ItemStack(CanvasDesk.DESK_ITEM));
-        if (row == 0) loadWorkspace = desk(player.level(), new BlockPos(64, 80, 40)).workspace;
+        for (int column = 0; column < 32; column++) place(player, new BlockPos(64 + column, 111 - row, 40), new ItemStack(CanvasDesk.DESK_ITEM));
+        if (row == 0) loadWorkspace = desk(player.level(), new BlockPos(64, 111, 40)).workspace;
         double previous = measurements.has("modulePlacementMillis") ? measurements.get("modulePlacementMillis").getAsDouble() : 0;
         measurements.addProperty("modulePlacementMillis", previous + (System.nanoTime() - start) / 1_000_000.0);
     }
@@ -243,7 +278,7 @@ public final class GameplayChecks {
     public static void assertLoad(MinecraftServer server) {
         ServerPlayer player = player(server); DeskServer service = DeskServer.get(server); int modules = 0;
         for (int x = 0; x < 32; x++) for (int z = 0; z < 32; z++) {
-            DeskBlockEntity tile = desk(player.level(), new BlockPos(64 + x, 80, 40 + z));
+            DeskBlockEntity tile = desk(player.level(), new BlockPos(64 + x, 111 - z, 40));
             require(service.store.resolve(tile.workspace).equals(service.store.resolve(loadWorkspace)), "Load surface split into different workspaces");
             require(tile.tileX == x * 256 && tile.tileY == z * 256, "Load surface projection drifted"); modules++;
         }
@@ -257,7 +292,7 @@ public final class GameplayChecks {
     }
 
     public static JsonObject view(MinecraftServer server, UUID id, UUID viewer) { return DeskServer.get(server).store.view(id, viewer, -1_000_000, -1_000_000, 1_000_000, 1_000_000); }
-    public static int count(MinecraftServer server, UUID id) { JsonObject state = view(server, id, player(server).getUUID()); success(state); return state.getAsJsonArray("elements").size(); }
+    public static int count(MinecraftServer server, UUID id) { return DeskServer.get(server).store.elementCount(id); }
     private static long heap() { return ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed(); }
     private static void floor(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
         for (int x = minX; x <= maxX; x++) for (int z = minZ; z <= maxZ; z++) {
@@ -266,10 +301,17 @@ public final class GameplayChecks {
         }
     }
     private static void place(ServerPlayer player, BlockPos pos, ItemStack stack) {
+        place(player,pos,stack,Direction.SOUTH);
+    }
+    private static void place(ServerPlayer player, BlockPos pos, ItemStack stack,Direction facing) {
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        player.setYRot(switch(facing){case NORTH->0;case EAST->90;case SOUTH->180;default->270;});
         BlockPos support = pos.below();
+        boolean temporary=player.level().getBlockState(support).isAir();
+        if(temporary)player.level().setBlock(support,Blocks.STONE.defaultBlockState(),3);
         var hit = new BlockHitResult(Vec3.atCenterOf(support).add(0, .5, 0), Direction.UP, support, false);
         ((BlockItem) CanvasDesk.DESK_ITEM).place(new BlockPlaceContext(player, InteractionHand.MAIN_HAND, stack, hit));
+        if(temporary)player.level().setBlock(support,Blocks.AIR.defaultBlockState(),3);
         require(player.level().getBlockState(pos).is(CanvasDesk.DESK), "Real BlockItem placement failed at " + pos);
         require(desk(player.level(), pos).workspace != null, "Block placement did not initialize workspace at " + pos);
     }

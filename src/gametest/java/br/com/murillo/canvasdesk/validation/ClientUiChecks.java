@@ -55,7 +55,8 @@ public final class ClientUiChecks {
         ui.add("PASS rectangle, ellipse, line, arrow and attached connector mouse tools");
 
         press(context, InputConstants.KEY_V, 0);
-        click(context, 242, 163, 0); waitSaved(context);
+        click(context, 254, 175, 0); waitSaved(context);
+        require(element(server, workspace, "CHECKLIST").get("fontSize").getAsDouble()==18,"New checklist default font size");
         require(element(server, workspace, "CHECKLIST").getAsJsonArray("checks").get(0).getAsBoolean(), "Checklist hit target did not toggle");
         ui.add("PASS checklist checkbox toggles and persists");
 
@@ -106,6 +107,22 @@ public final class ClientUiChecks {
         replaceText(context, "Ação revisada\nConexão continua salva"); saveText(context); waitSaved(context);
         require(element(server, workspace, "TEXT").get("text").getAsString().startsWith("Ação revisada"), "Existing text edit was lost");
         ui.add("PASS selection and native text editing preserve accents");
+
+        JsonObject checklist=element(server,workspace,"CHECKLIST");
+        click(context,checklist.get("x").getAsDouble()+100,checklist.get("y").getAsDouble()+60,0);
+        clickWidgetContaining(context,"Fonte","Font");replaceText(context,"24");saveText(context);waitSaved(context);
+        checklist=element(server,workspace,"CHECKLIST");
+        near(checklist.get("fontSize").getAsDouble(),24,"Font size control persists");
+        press(context,InputConstants.KEY_F,0);context.waitTicks(3);
+        double cw=checklist.get("w").getAsDouble(),ch=checklist.get("h").getAsDouble();
+        double cx=checklist.get("x").getAsDouble()+cw,cy=checklist.get("y").getAsDouble()+ch;
+        drag(context,cx,cy,cx+8,cy+4,cx+16,cy+8,InputConstants.MOUSE_BUTTON_LEFT,0);waitSaved(context);
+        checklist=element(server,workspace,"CHECKLIST");
+        near(checklist.get("w").getAsDouble()/cw,checklist.get("h").getAsDouble()/ch,"Proportional checklist dimensions");
+        near(checklist.get("fontSize").getAsDouble()/24,checklist.get("w").getAsDouble()/cw,"Proportional checklist text");
+        press(context,InputConstants.KEY_Z,InputConstants.MOD_CONTROL);waitSaved(context);
+        near(element(server,workspace,"CHECKLIST").get("fontSize").getAsDouble(),24,"Undo proportional resize");
+        ui.add("PASS shared checklist hit layout, adjustable font, proportional resize and undo");
 
         double[] before = camera(context);
         context.runOnClient(client -> screen(client).mouseScrolled(320, 190, 0, 1));

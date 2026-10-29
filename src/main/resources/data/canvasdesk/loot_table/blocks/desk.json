@@ -10,13 +10,22 @@
         {
           "type": "minecraft:item",
           "name": "canvasdesk:desk",
-          "modifier": {
-            "type": "minecraft:copy_components",
-            "source": "block_entity",
-            "include": [
-              "minecraft:custom_data"
-            ]
-          }
+          "modifier": [
+            {
+              "type": "minecraft:copy_components",
+              "source": "block_entity",
+              "include": [
+                "minecraft:custom_data"
+              ]
+            },
+            {
+              "type": "minecraft:copy_state",
+              "block": "canvasdesk:desk",
+              "properties": [
+                "color"
+              ]
+            }
+          ]
         }
       ]
     }

@@ -8,6 +8,7 @@
   "license": "MIT",
   "icon": "assets/canvasdesk/icon.png",
   "environment": "*",
+  "mixins": ["canvasdesk.mixins.json"],
   "entrypoints": {
     "main": ["br.com.murillo.canvasdesk.CanvasDesk"],
     "client": ["br.com.murillo.canvasdesk.client.CanvasDeskClient"]

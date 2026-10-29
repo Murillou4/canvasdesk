@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
-<g fill="#e8dfc7">
+<g fill="#fafaf7">
 <rect x="0" y="0" width="2" height="1"/>
 <rect x="3" y="0" width="8" height="1"/>
 <rect x="12" y="0" width="3" height="1"/>
@@ -116,7 +116,7 @@
 <rect x="6" y="31" width="2" height="1"/>
 <rect x="9" y="31" width="23" height="1"/>
 </g>
-<g fill="#e3dac3">
+<g fill="#f3f3ef">
 <rect x="2" y="0" width="1" height="1"/>
 <rect x="11" y="0" width="1" height="1"/>
 <rect x="15" y="0" width="1" height="1"/>
@@ -159,7 +159,7 @@
 <rect x="11" y="29" width="1" height="1"/>
 <rect x="5" y="31" width="1" height="1"/>
 </g>
-<g fill="#ece4cf">
+<g fill="#ffffff">
 <rect x="1" y="1" width="1" height="1"/>
 <rect x="4" y="1" width="1" height="1"/>
 <rect x="12" y="1" width="1" height="1"/>

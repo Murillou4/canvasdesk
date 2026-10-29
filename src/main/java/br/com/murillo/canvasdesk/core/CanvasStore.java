@@ -61,6 +61,14 @@ public final class CanvasStore implements AutoCloseable {
         return id;
     }
 
+    /** Count index entries without loading every element payload during a server diagnostic. */
+    public synchronized int elementCount(UUID workspace) { return document(workspace).index.entries.size(); }
+    public synchronized boolean canEdit(UUID workspace,UUID actor){return document(workspace).editable(actor);}
+    public synchronized JsonObject element(UUID workspace,UUID id){
+        var entry=document(workspace).index.entries.get(id);if(entry==null)return null;
+        try{return objects.get(entry).toJson();}catch(IOException e){throw new UncheckedIOException(e);}
+    }
+
     /** Offset to add to a module's saved coordinates after resolving its old workspace id. */
     public synchronized double[] projectionOffset(UUID workspace) {
         resolve(workspace); double dx = 0, dy = 0; UUID id = workspace;
@@ -134,7 +142,15 @@ public final class CanvasStore implements AutoCloseable {
         }
         updateConnectors(doc, desired);
         DocumentState.History history = prepare(doc, desired);
-        commitEdit(doc, actor, "normal", history, operationId, "Salvo.");
+        UUID typingGroup=CanvasElement.optionalId(request,"typingGroup");
+        UUID typingElement=null;
+        if(typingGroup!=null){
+            if(changes.size()!=1)throw new IllegalArgumentException("Intervalo de escrita deve alterar um texto.");
+            JsonObject primary=changes.get(0).getAsJsonObject();CanvasElement text=desired.get(UUID.fromString(primary.get("id").getAsString()));
+            if(text==null||text.type()!=CanvasElement.Type.TEXT)throw new IllegalArgumentException("Intervalo de escrita inválido.");
+            typingElement=text.id();
+        }
+        commitEdit(doc, actor, "normal", history, operationId, "Salvo.",typingGroup,typingElement);
         return result(true, "Salvo.", doc.id);
     }
 
@@ -200,7 +216,11 @@ public final class CanvasStore implements AutoCloseable {
     }
 
     private void commitEdit(DocumentState doc, UUID actor, String mode, DocumentState.History history, UUID operationId, String message) throws IOException {
+        commitEdit(doc,actor,mode,history,operationId,message,null,null);
+    }
+    private void commitEdit(DocumentState doc, UUID actor, String mode, DocumentState.History history, UUID operationId, String message,UUID typingGroup,UUID typingElement) throws IOException {
         JsonObject event = event("edit"); event.addProperty("workspace", doc.id.toString()); event.addProperty("actor", actor.toString());
+        if(typingGroup!=null){event.addProperty("typingGroup",typingGroup.toString());event.addProperty("typingElement",typingElement.toString());}
         event.addProperty("mode", mode); event.add("changes", history.toJson()); receipt(event, operationId, actor, message); commit(event);
     }
 
@@ -238,7 +258,7 @@ public final class CanvasStore implements AutoCloseable {
             Set<UUID> owners = new LinkedHashSet<>(targetDoc.owners); owners.addAll(sourceDoc.owners);
             Set<UUID> editors = new LinkedHashSet<>(targetDoc.editors); editors.addAll(sourceDoc.editors); editors.removeAll(owners);
             MergeRequest merge = new MergeRequest(UUID.randomUUID(), targetDoc.id, sourceDoc.id, dx, dy, owners, editors);
-            merge.approved.add(actor);
+            // Placing a connecting module requests a union; it is not consent to the resulting ACL.
             JsonObject event = event("mergeRequest"); event.add("request", merge.toJson()); commit(event); return mergePending(merge);
         } catch (RuntimeException | IOException error) { return failure(target, error); }
     }
@@ -318,7 +338,7 @@ public final class CanvasStore implements AutoCloseable {
                     if (!doc.state(change.id()).equals(change.before())) throw new IOException("Journal revision mismatch.");
                     doc.set(change.id(), change.after());
                 }
-                doc.history(actor, event.get("mode").getAsString(), history); doc.revision++;
+                doc.history(actor, event.get("mode").getAsString(), history,CanvasElement.optionalId(event,"typingGroup"),CanvasElement.optionalId(event,"typingElement")); doc.revision++;
             }
             case "acl" -> {
                 doc = document(id(event, "workspace")); doc.editors.clear(); doc.editors.addAll(DocumentState.readIds(event.getAsJsonArray("editors")));

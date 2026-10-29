@@ -39,7 +39,7 @@ final class CanvasButton extends AbstractWidget {
             g.blitSprite(RenderPipelines.GUI_TEXTURED, Identifier.fromNamespaceAndPath("canvasdesk", "tools/" + sprite),
                 getX() + (width - 16) / 2, getY() + (height - 16) / 2, 16, 16);
         } else {
-            String label = getMessage().getString();
+            String label = Minecraft.getInstance().font.plainSubstrByWidth(getMessage().getString(),width-8);
             g.text(Minecraft.getInstance().font, label, getX() + (width - Minecraft.getInstance().font.width(label)) / 2,
                 getY() + (height - 8) / 2, active ? 0xff34342e : 0xffa59f93, false);
         }

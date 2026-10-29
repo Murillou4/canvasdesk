@@ -1,0 +1,718 @@
+{
+  "colors": {
+    "white": 16448247,
+    "orange": 16351261,
+    "magenta": 13061821,
+    "light_blue": 3847130,
+    "yellow": 16701501,
+    "lime": 8439583,
+    "pink": 15961002,
+    "gray": 4673362,
+    "light_gray": 10329495,
+    "cyan": 1481884,
+    "purple": 8991416,
+    "blue": 3949738,
+    "brown": 8606770,
+    "green": 6192150,
+    "red": 11546150,
+    "black": 1908001
+  },
+  "vertical": [
+    {
+      "name": "base",
+      "when": {},
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            7
+          ],
+          "to": [
+            16,
+            16,
+            7.5
+          ],
+          "texture": "canvas"
+        },
+        {
+          "from": [
+            0,
+            0,
+            7.5
+          ],
+          "to": [
+            16,
+            16,
+            9
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_up",
+      "when": {
+        "up": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            15,
+            6.5
+          ],
+          "to": [
+            16,
+            16,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_down",
+      "when": {
+        "down": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            6.5
+          ],
+          "to": [
+            16,
+            1,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_left",
+      "when": {
+        "left": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            15,
+            0,
+            6.5
+          ],
+          "to": [
+            16,
+            16,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_right",
+      "when": {
+        "right": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            6.5
+          ],
+          "to": [
+            1,
+            16,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "tray",
+      "when": {
+        "base": "true"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            3.5
+          ],
+          "to": [
+            16,
+            0.75,
+            7
+          ],
+          "texture": "wood"
+        },
+        {
+          "from": [
+            0,
+            0.75,
+            3.5
+          ],
+          "to": [
+            16,
+            1,
+            4
+          ],
+          "texture": "copper"
+        },
+        {
+          "from": [
+            0,
+            0,
+            9
+          ],
+          "to": [
+            16,
+            1.5,
+            11
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "foot_left",
+      "when": {
+        "base": "true",
+        "left": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            13,
+            0,
+            9
+          ],
+          "to": [
+            15,
+            7,
+            11
+          ],
+          "texture": "wood"
+        },
+        {
+          "from": [
+            12.5,
+            0,
+            5
+          ],
+          "to": [
+            15.5,
+            1,
+            14
+          ],
+          "texture": "wood"
+        },
+        {
+          "from": [
+            12.75,
+            1,
+            9
+          ],
+          "to": [
+            15.25,
+            2,
+            11.25
+          ],
+          "texture": "copper"
+        }
+      ]
+    },
+    {
+      "name": "foot_right",
+      "when": {
+        "base": "true",
+        "right": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            1,
+            0,
+            9
+          ],
+          "to": [
+            3,
+            7,
+            11
+          ],
+          "texture": "wood"
+        },
+        {
+          "from": [
+            0.5,
+            0,
+            5
+          ],
+          "to": [
+            3.5,
+            1,
+            14
+          ],
+          "texture": "wood"
+        },
+        {
+          "from": [
+            0.75,
+            1,
+            9
+          ],
+          "to": [
+            3.25,
+            2,
+            11.25
+          ],
+          "texture": "copper"
+        }
+      ]
+    },
+    {
+      "name": "stationery",
+      "when": {
+        "base": "true"
+      },
+      "boxes": [
+        {
+          "from": [
+            4,
+            0.8,
+            4.4
+          ],
+          "to": [
+            8,
+            1,
+            4.8
+          ],
+          "texture": "copper"
+        },
+        {
+          "from": [
+            8,
+            0.8,
+            4.4
+          ],
+          "to": [
+            8.6,
+            1,
+            4.8
+          ],
+          "texture": "ink"
+        },
+        {
+          "from": [
+            10,
+            0.8,
+            4.5
+          ],
+          "to": [
+            12,
+            1,
+            6
+          ],
+          "texture": "eraser"
+        },
+        {
+          "from": [
+            1.5,
+            0.8,
+            4.5
+          ],
+          "to": [
+            3.5,
+            1,
+            4.9
+          ],
+          "texture": "canvas"
+        }
+      ]
+    }
+  ],
+  "wall": [
+    {
+      "name": "base",
+      "when": {},
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            7
+          ],
+          "to": [
+            16,
+            16,
+            7.5
+          ],
+          "texture": "canvas"
+        },
+        {
+          "from": [
+            0,
+            0,
+            7.5
+          ],
+          "to": [
+            16,
+            16,
+            9
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_up",
+      "when": {
+        "up": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            15,
+            6.5
+          ],
+          "to": [
+            16,
+            16,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_down",
+      "when": {
+        "down": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            6.5
+          ],
+          "to": [
+            16,
+            1,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_left",
+      "when": {
+        "left": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            15,
+            0,
+            6.5
+          ],
+          "to": [
+            16,
+            16,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_right",
+      "when": {
+        "right": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            6.5
+          ],
+          "to": [
+            1,
+            16,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "tray",
+      "when": {
+        "base": "true"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            3.5
+          ],
+          "to": [
+            16,
+            0.75,
+            7
+          ],
+          "texture": "wood"
+        },
+        {
+          "from": [
+            0,
+            0.75,
+            3.5
+          ],
+          "to": [
+            16,
+            1,
+            4
+          ],
+          "texture": "copper"
+        }
+      ]
+    },
+    {
+      "name": "stationery",
+      "when": {
+        "base": "true"
+      },
+      "boxes": [
+        {
+          "from": [
+            4,
+            0.8,
+            4.4
+          ],
+          "to": [
+            8,
+            1,
+            4.8
+          ],
+          "texture": "copper"
+        },
+        {
+          "from": [
+            8,
+            0.8,
+            4.4
+          ],
+          "to": [
+            8.6,
+            1,
+            4.8
+          ],
+          "texture": "ink"
+        },
+        {
+          "from": [
+            10,
+            0.8,
+            4.5
+          ],
+          "to": [
+            12,
+            1,
+            6
+          ],
+          "texture": "eraser"
+        },
+        {
+          "from": [
+            1.5,
+            0.8,
+            4.5
+          ],
+          "to": [
+            3.5,
+            1,
+            4.9
+          ],
+          "texture": "canvas"
+        }
+      ]
+    }
+  ],
+  "horizontal": [
+    {
+      "name": "base",
+      "when": {},
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            7
+          ],
+          "to": [
+            16,
+            16,
+            7.5
+          ],
+          "texture": "canvas"
+        },
+        {
+          "from": [
+            0,
+            0,
+            7.5
+          ],
+          "to": [
+            16,
+            16,
+            9
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_up",
+      "when": {
+        "up": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            15,
+            6.5
+          ],
+          "to": [
+            16,
+            16,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_down",
+      "when": {
+        "down": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            6.5
+          ],
+          "to": [
+            16,
+            1,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_left",
+      "when": {
+        "left": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            15,
+            0,
+            6.5
+          ],
+          "to": [
+            16,
+            16,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "edge_right",
+      "when": {
+        "right": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            0,
+            0,
+            6.5
+          ],
+          "to": [
+            1,
+            16,
+            9.5
+          ],
+          "texture": "wood"
+        }
+      ]
+    },
+    {
+      "name": "stationery",
+      "when": {
+        "down": "false"
+      },
+      "boxes": [
+        {
+          "from": [
+            3,
+            0,
+            5.8
+          ],
+          "to": [
+            7,
+            0.6,
+            6.2
+          ],
+          "texture": "copper"
+        },
+        {
+          "from": [
+            7,
+            0,
+            5.8
+          ],
+          "to": [
+            7.5,
+            0.6,
+            6.2
+          ],
+          "texture": "ink"
+        },
+        {
+          "from": [
+            10,
+            0,
+            5.7
+          ],
+          "to": [
+            12,
+            0.8,
+            6.5
+          ],
+          "texture": "eraser"
+        }
+      ]
+    }
+  ]
+}

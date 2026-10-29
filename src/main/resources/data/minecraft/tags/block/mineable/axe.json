@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "canvasdesk:desk"
+    "canvasdesk:desk",
+    "canvasdesk:drawing_desk"
   ]
 }

@@ -22,7 +22,10 @@ loom {
             vmArg '-Dcanvasdesk.selftest=' + providers.gradleProperty('canvasdesk_selftest').getOrElse('false')
             programArgs '--width', '1280', '--height', '720'
         }
-        server { programArg 'nogui' }
+        server {
+            programArg 'nogui'
+            if(providers.gradleProperty('canvasdesk_dedicated_smoke').isPresent())runDir '.codex-temp/dedicated-smoke'
+        }
     }
 }
 
@@ -43,7 +46,7 @@ fabricApi {
         enableClientGameTests = true
         eula = true
         clearRunDirectory = false
-        username = 'CanvasDeskTest'
+        username = providers.gradleProperty('canvasdesk_test_role').getOrElse('single') == 'peer' ? 'CanvasDeskPeer' : 'CanvasDeskTest'
     }
 }
 sourceSets.gametest.compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
@@ -52,7 +55,39 @@ loom.runs.clientGameTest {
     vmArg '-Xmx2G'
     vmArg '-Dcanvasdesk.selftest=true'
     vmArg '-Dcanvasdesk.reportDir=' + layout.projectDirectory.dir('artifacts/runtime').asFile.absolutePath
-    programArgs '--width', '1280', '--height', '720'
+    vmArg '-Dcanvasdesk.testRole=' + providers.gradleProperty('canvasdesk_test_role').getOrElse('single')
+    vmArg '-Dcanvasdesk.projectRoot=' + layout.projectDirectory.asFile.absolutePath
+    vmArg '-Dcanvasdesk.stress=' + providers.gradleProperty('canvasdesk_stress').getOrElse('false')
+    if (providers.gradleProperty('canvasdesk_test_role').getOrElse('single') == 'interaction') {
+        runDir '.codex-temp/interaction-client-121'
+    } else if (providers.gradleProperty('canvasdesk_test_role').getOrElse('single') != 'single') {
+        runDir '.codex-temp/multiplayer-' + providers.gradleProperty('canvasdesk_test_role').get()
+    }
+    def testRole=providers.gradleProperty('canvasdesk_test_role').getOrElse('single')
+    programArgs '--width', testRole in ['primary','peer'] ? '854' : '1280', '--height', testRole in ['primary','peer'] ? '480' : '720'
+}
+loom.runs.register('performanceClient') {
+    client()
+    source sourceSets.gametest
+    runDir '.codex-temp/performance-client'
+    vmArg '-Xmx1500M'
+    vmArg '-Dcanvasdesk.performanceProbe=true'
+    vmArg '-Dcanvasdesk.projectRoot=' + layout.projectDirectory.asFile.absolutePath
+    programArgs '--width','854','--height','480','--username','CanvasDeskTest','--quickPlaySingleplayer','CanvasDeskBench'
+}
+sourceSets.create('serverValidation') {
+    compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+}
+loom.mods.register('canvasdesk-server-validation') { sourceSet sourceSets.serverValidation }
+loom.runs.register('dedicatedValidation') {
+    server()
+    source sourceSets.serverValidation
+    runDir '.codex-temp/dedicated-validation'
+    vmArg '-Xmx1500M'
+    vmArg '-Dcanvasdesk.projectRoot=' + layout.projectDirectory.asFile.absolutePath
+    vmArg '-Dcanvasdesk.serverReload=' + providers.gradleProperty('canvasdesk_server_reload').getOrElse('false')
+    programArg 'nogui'
 }
 
 java {
@@ -72,5 +107,28 @@ processResources {
     inputs.property 'version', version
     filesMatching('fabric.mod.json') { expand 'version': version }
 }
-test { useJUnitPlatform() }
+test { useJUnitPlatform(); timeout = java.time.Duration.ofMinutes(2) }
 jar { from('LICENSE') }
+tasks.named('runServer') { standardInput = System.in }
+tasks.register('sourceDistribution', Zip) {
+    archiveFileName = "CanvasDesk-${project.version}-source.zip"
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+    from(projectDir) {
+        include 'gradlew', 'gradlew.bat', 'gradle/**', 'gradle.properties', 'settings.gradle', 'build.gradle'
+        include 'src/**', 'tools/**', 'art/**', 'README.md', 'VALIDATION_STATUS.md', 'CONTRACT.md', 'LICENSE', 'AGENTS.md', '.gitignore'
+        exclude '**/__pycache__/**', '**/*.pyc'
+    }
+}
+tasks.register('release', Copy) {
+    dependsOn build, sourceDistribution
+    into layout.projectDirectory.dir("dist/${project.version}")
+    from(tasks.jar.archiveFile)
+    from(tasks.sourcesJar.archiveFile)
+    from(tasks.sourceDistribution.archiveFile)
+    from('README.md','VALIDATION_STATUS.md')
+    doLast {
+        def entries = destinationDir.listFiles().findAll { it.name.endsWith('.jar') || it.name.endsWith('.zip') }.sort { it.name }
+        def digest = java.security.MessageDigest.getInstance('SHA-256')
+        new File(destinationDir, 'SHA256SUMS.txt').text = entries.collect { f -> digest.digest(f.bytes).encodeHex().toString() + '  ' + f.name }.join('\n') + '\n'
+    }
+}

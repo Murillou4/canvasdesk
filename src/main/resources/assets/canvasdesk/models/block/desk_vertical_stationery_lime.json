@@ -1,0 +1,143 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "wood": "canvasdesk:block/desk_wood",
+    "end": "canvasdesk:block/desk_endgrain",
+    "copper": "canvasdesk:block/desk_copper",
+    "circuit": "canvasdesk:block/desk_circuit",
+    "particle": "canvasdesk:block/desk_wood",
+    "ink": "minecraft:block/black_concrete",
+    "eraser": "minecraft:block/gray_wool",
+    "canvas": "canvasdesk:block/paper_lime"
+  },
+  "elements": [
+    {
+      "from": [
+        4,
+        0.8,
+        4.4
+      ],
+      "to": [
+        8,
+        1,
+        4.8
+      ],
+      "faces": {
+        "down": {
+          "texture": "#copper"
+        },
+        "up": {
+          "texture": "#copper"
+        },
+        "north": {
+          "texture": "#copper"
+        },
+        "south": {
+          "texture": "#copper"
+        },
+        "west": {
+          "texture": "#copper"
+        },
+        "east": {
+          "texture": "#copper"
+        }
+      }
+    },
+    {
+      "from": [
+        8,
+        0.8,
+        4.4
+      ],
+      "to": [
+        8.6,
+        1,
+        4.8
+      ],
+      "faces": {
+        "down": {
+          "texture": "#ink"
+        },
+        "up": {
+          "texture": "#ink"
+        },
+        "north": {
+          "texture": "#ink"
+        },
+        "south": {
+          "texture": "#ink"
+        },
+        "west": {
+          "texture": "#ink"
+        },
+        "east": {
+          "texture": "#ink"
+        }
+      }
+    },
+    {
+      "from": [
+        10,
+        0.8,
+        4.5
+      ],
+      "to": [
+        12,
+        1,
+        6
+      ],
+      "faces": {
+        "down": {
+          "texture": "#eraser"
+        },
+        "up": {
+          "texture": "#eraser"
+        },
+        "north": {
+          "texture": "#eraser"
+        },
+        "south": {
+          "texture": "#eraser"
+        },
+        "west": {
+          "texture": "#eraser"
+        },
+        "east": {
+          "texture": "#eraser"
+        }
+      }
+    },
+    {
+      "from": [
+        1.5,
+        0.8,
+        4.5
+      ],
+      "to": [
+        3.5,
+        1,
+        4.9
+      ],
+      "faces": {
+        "down": {
+          "texture": "#canvas"
+        },
+        "up": {
+          "texture": "#canvas"
+        },
+        "north": {
+          "texture": "#canvas"
+        },
+        "south": {
+          "texture": "#canvas"
+        },
+        "west": {
+          "texture": "#canvas"
+        },
+        "east": {
+          "texture": "#canvas"
+        }
+      }
+    }
+  ]
+}

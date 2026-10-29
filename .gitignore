@@ -6,3 +6,5 @@ artifacts/
 *.log
 .idea/
 *.iml
+__pycache__/
+*.pyc

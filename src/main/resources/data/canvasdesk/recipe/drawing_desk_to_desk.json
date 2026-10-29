@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_transmute",
+  "group": "canvasdesk_format",
+  "input": "canvasdesk:drawing_desk",
+  "material": "minecraft:stick",
+  "result": {
+    "id": "canvasdesk:desk"
+  }
+}

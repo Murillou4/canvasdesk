@@ -4,6 +4,7 @@ import br.com.murillo.canvasdesk.CanvasDesk;
 import br.com.murillo.canvasdesk.client.CanvasDeskClient;
 import br.com.murillo.canvasdesk.client.editor.CanvasElementView;
 import br.com.murillo.canvasdesk.client.editor.CanvasPainter;
+import br.com.murillo.canvasdesk.client.editor.CanvasTextLayout;
 import com.google.gson.*;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
@@ -20,46 +21,54 @@ import javax.imageio.ImageIO;
 
 /** Raster tiles are disposable views of the vector document, never the saved source. */
 public final class SurfaceCache {
-    private static final int LIMIT=128;
+    private static final int LIMIT=32*1024*1024;
     private static final LinkedHashMap<Long,Tile> TILES=new LinkedHashMap<>(32,.75F,true);
     private static final LinkedHashMap<Long,Long> WANTED=new LinkedHashMap<>();
+    private static final Map<Long,Integer> SEEN=new HashMap<>();
+    private static int cacheBytes;
     private static final Map<Integer,Glyph> GLYPHS=new HashMap<>();
     private static boolean fontLoaded;
     private static int tick;
     private SurfaceCache(){}
     public static Identifier texture(BlockPos pos){
-        long key=pos.asLong();WANTED.putIfAbsent(key,0L);Tile tile=TILES.get(key);return tile==null?null:tile.id;
+        long key=pos.asLong();WANTED.putIfAbsent(key,0L);SEEN.put(key,tick);Tile tile=TILES.get(key);return tile==null?null:tile.id;
     }
     public static void tick(Minecraft client){
         if(client.level==null||client.player==null)return;
         if(++tick%5!=0)return;
-        long now=System.currentTimeMillis();JsonArray positions=new JsonArray();
+        long now=System.currentTimeMillis();JsonArray positions=new JsonArray(),missing=new JsonArray();
         Iterator<Map.Entry<Long,Long>> iterator=WANTED.entrySet().iterator();
         while(iterator.hasNext()){
             var entry=iterator.next();BlockPos pos=BlockPos.of(entry.getKey());
-            if(client.player.distanceToSqr(pos.getX()+.5,pos.getY()+.5,pos.getZ()+.5)>80*80){iterator.remove();continue;}
-            if(now-entry.getValue()>=1000&&positions.size()<32){positions.add(entry.getKey());entry.setValue(now);}
+            if(tick-SEEN.getOrDefault(entry.getKey(),0)>40||client.player.distanceToSqr(pos.getX()+.5,pos.getY()+.5,pos.getZ()+.5)>80*80){iterator.remove();SEEN.remove(entry.getKey());}
         }
-        if(!positions.isEmpty()){JsonObject request=new JsonObject();request.addProperty("action","tiles");request.add("positions",positions);CanvasDeskClient.send(request);}
+        // Oldest first prevents the first 128 visible panels from starving a larger board.
+        var requests=new ArrayList<>(WANTED.entrySet());requests.sort(Map.Entry.comparingByValue());
+        for(var entry:requests)if(now-entry.getValue()>=1000&&positions.size()<32){
+            positions.add(entry.getKey());entry.setValue(now);Tile tile=TILES.get(entry.getKey());
+            if(tile==null||tile.size!=resolution(client,BlockPos.of(entry.getKey())))missing.add(entry.getKey());
+        }
+        if(!positions.isEmpty()){JsonObject request=new JsonObject();request.addProperty("action","tiles");request.add("positions",positions);request.add("missing",missing);CanvasDeskClient.send(request);}
     }
+    private static int resolution(Minecraft client,BlockPos pos){return client.player!=null&&client.player.distanceToSqr(pos.getX()+.5,pos.getY()+.5,pos.getZ()+.5)>16*16?64:256;}
     public static void accept(JsonObject state){
-        long pos=state.get("pos").getAsLong();String fingerprint=state.getAsJsonArray("elements").toString()+state.get("tileX")+state.get("tileY");
+        long pos=state.get("pos").getAsLong();Minecraft client=Minecraft.getInstance();int size=resolution(client,BlockPos.of(pos));
+        String fingerprint=state.getAsJsonArray("elements").toString()+state.get("tileX")+state.get("tileY")+state.get("background")+"@"+size;
         Tile old=TILES.get(pos);if(old!=null&&old.fingerprint.equals(fingerprint))return;
-        BufferedImage bitmap=raster(state);NativeImage image=new NativeImage(256,256,true);
-        for(int y=0;y<256;y++)for(int x=0;x<256;x++)image.setPixel(x,y,bitmap.getRGB(x,y));
-        Minecraft client=Minecraft.getInstance();
+        BufferedImage bitmap=raster(state);NativeImage image=new NativeImage(size,size,true);
+        for(int y=0;y<size;y++)for(int x=0;x<size;x++)image.setPixel(x,y,bitmap.getRGB(x*256/size,y*256/size));
         Identifier id=old==null?CanvasDesk.id("surface/"+Long.toUnsignedString(pos)):old.id;
-        if(old!=null)client.getTextureManager().release(old.id);
+        if(old!=null){client.getTextureManager().release(old.id);cacheBytes-=old.size*old.size*4;}
         DynamicTexture texture=new DynamicTexture(()->"Canvas Desk surface",image);client.getTextureManager().register(id,texture);
-        TILES.put(pos,new Tile(id,fingerprint));
-        while(TILES.size()>LIMIT){Long first=TILES.keySet().iterator().next();Tile removed=TILES.remove(first);client.getTextureManager().release(removed.id);}
+        TILES.put(pos,new Tile(id,fingerprint,size));cacheBytes+=size*size*4;
+        while(cacheBytes>LIMIT||TILES.size()>2048){Long first=TILES.keySet().iterator().next();Tile removed=TILES.remove(first);cacheBytes-=removed.size*removed.size*4;client.getTextureManager().release(removed.id);}
     }
-    public static void clear(){Minecraft client=Minecraft.getInstance();for(Tile tile:TILES.values())client.getTextureManager().release(tile.id);TILES.clear();WANTED.clear();GLYPHS.clear();fontLoaded=false;}
+    public static void clear(){Minecraft client=Minecraft.getInstance();for(Tile tile:TILES.values())client.getTextureManager().release(tile.id);TILES.clear();WANTED.clear();SEEN.clear();cacheBytes=0;GLYPHS.clear();fontLoaded=false;}
 
     static BufferedImage raster(JsonObject state){
         BufferedImage image=new BufferedImage(256,256,BufferedImage.TYPE_INT_ARGB);Graphics2D g=image.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
-        double tileX=state.get("tileX").getAsDouble(),tileY=state.get("tileY").getAsDouble();g.translate(-tileX,-tileY);
+        double tileX=state.get("tileX").getAsDouble(),tileY=state.get("tileY").getAsDouble();g.translate(-tileX,-tileY);g.setClip(new Rectangle2D.Double(tileX,tileY,256,256));
         Map<String,CanvasElementView> elements=new LinkedHashMap<>();
         for(JsonElement value:state.getAsJsonArray("elements")){CanvasElementView e=new CanvasElementView(value.getAsJsonObject());elements.put(e.id,e);}
         for(JsonElement value:state.getAsJsonArray("elements"))draw(g,value.getAsJsonObject(),elements);g.dispose();return image;
@@ -87,19 +96,16 @@ public final class SurfaceCache {
             g.setColor(new Color(color|0xff000000,true));g.fill(new Rectangle2D.Double(x,y,3,h));
         }
         g.setColor(new Color(color|0xff000000,true));
-        int pad=type.equals("TEXT")?0:9;int maxWidth=Math.max(8,(int)w-pad*2-(type.equals("CHECKLIST")?14:0));
-        double yy=y+pad;String[] lines=str(e,"text").split("\n",-1);JsonArray checks=e.has("checks")?e.getAsJsonArray("checks"):new JsonArray();
-        for(int i=0;i<lines.length;i++){
-            if(yy+9>y+h-(type.equals("TEXT")?0:4))break;double xx=x+pad;
-            if(type.equals("CHECKLIST")){
-                g.setStroke(new BasicStroke(1));g.draw(new Rectangle2D.Double(xx,yy,8,8));
-                if(i<checks.size()&&checks.get(i).getAsBoolean()){g.setStroke(new BasicStroke(1.4F));g.draw(new Line2D.Double(xx+1,yy+4,xx+4,yy+7));g.draw(new Line2D.Double(xx+4,yy+7,xx+8,yy+1));}xx+=14;
-            }
-            for(var visualLine:Minecraft.getInstance().font.split(Component.literal(lines[i]),maxWidth)){
-                if(yy+9>y+h-(type.equals("TEXT")?0:4))break;
-                StringBuilder line=new StringBuilder();visualLine.accept((index,style,cp)->{line.appendCodePoint(cp);return true;});text(g,line.toString(),xx,yy);yy+=12;
-            }
-            if(lines[i].isEmpty())yy+=12;
+        CanvasElementView element=new CanvasElementView(e);CanvasTextLayout layout=CanvasTextLayout.of(Minecraft.getInstance().font,element);
+        double s=layout.scale();
+        for(var check:layout.checks()) {
+            double xx=x+layout.padding(),yy=y+check.y(),b=layout.boxSize();g.setStroke(new BasicStroke((float)s));g.draw(new Rectangle2D.Double(xx,yy,b,b));
+            if(check.index()<element.checks.size()&&element.checks.get(check.index())){g.setStroke(new BasicStroke((float)(1.4*s)));g.draw(new Line2D.Double(xx+s,yy+4*s,xx+4*s,yy+7*s));g.draw(new Line2D.Double(xx+4*s,yy+7*s,xx+8*s,yy+s));}
+        }
+        for(var visual:layout.lines()) {
+            var clip=g.getClipBounds();if(clip!=null&&(y+visual.y()+12*s<clip.getMinY()||y+visual.y()>clip.getMaxY()))continue;
+            StringBuilder line=new StringBuilder();visual.value().accept((index,style,cp)->{line.appendCodePoint(cp);return true;});
+            Graphics2D scaled=(Graphics2D)g.create();scaled.translate(x+layout.textX(),y+visual.y());scaled.scale(s,s);text(scaled,line.toString(),0,0);scaled.dispose();
         }
     }
     private static void text(Graphics2D g,String text,double x,double y){
@@ -130,5 +136,5 @@ public final class SurfaceCache {
         }catch(Exception e){CanvasDesk.LOGGER.debug("Font provider unavailable {}: {}",file,e.toString());}
     }
     private record Glyph(BufferedImage image,float scale,float ascent,float advance){}
-    private record Tile(Identifier id,String fingerprint){}
+    private record Tile(Identifier id,String fingerprint,int size){}
 }

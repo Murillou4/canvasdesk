@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_transmute",
+  "group": "canvasdesk_dye",
+  "input": "canvasdesk:drawing_desk",
+  "material": "minecraft:red_dye",
+  "result": {
+    "id": "canvasdesk:drawing_desk",
+    "components": {
+      "minecraft:block_state": {
+        "color": "red"
+      }
+    }
+  }
+}

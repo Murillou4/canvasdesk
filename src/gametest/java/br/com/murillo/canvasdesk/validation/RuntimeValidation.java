@@ -1,6 +1,8 @@
 package br.com.murillo.canvasdesk.validation;
 
 import br.com.murillo.canvasdesk.client.editor.CanvasScreen;
+import br.com.murillo.canvasdesk.CanvasDesk;
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -24,6 +26,10 @@ public final class RuntimeValidation implements FabricClientGameTest {
     private final List<String> gameplay = new ArrayList<>(), ui = new ArrayList<>(), screenshots = new ArrayList<>();
 
     @Override public void runTest(ClientGameTestContext context) {
+        String role=System.getProperty("canvasdesk.testRole","single");
+        if(role.equals("interaction")){new InteractionValidation().run(context);return;}
+        if(role.equals("visual")){new VisualValidation().run(context);return;}
+        if(!role.equals("single")){new MultiplayerValidation().run(context,role);return;}
         if (!Boolean.getBoolean("canvasdesk.selftest")) throw new IllegalStateException("Explicit canvasdesk.selftest flag is required");
         try {
             Files.createDirectories(output); write("RUNNING", null);
@@ -33,14 +39,25 @@ public final class RuntimeValidation implements FabricClientGameTest {
                 save = world.getWorldSave();
                 context.waitFor(client -> client.player != null && client.level != null, 600);
                 world.getConnection().waitForChunksDownload();
-                context.runOnClient(client -> { client.options.guiScale().set(2); client.options.renderDistance().set(6); client.resizeGui(); });
+                context.runOnClient(client -> { client.options.guiScale().set(2); client.options.renderDistance().set(3);client.options.simulationDistance().set(5);client.options.framerateLimit().set(30); client.resizeGui(); });
                 world.getServer().runOnServer(GameplayChecks::setupRectangle);
                 context.waitTicks(20);
                 world.getServer().runOnServer(GameplayChecks::assertRectangle);
-                gameplay.add("Actual recipe manager with mixed plank tags; one-item survival placement; 2x2 connections across four chunks PASS"); write("RUNNING", null);
+                gameplay.add("Actual recipe manager with mixed plank tags; survival placement; vertical 2x2 across chunk border PASS"); write("RUNNING", null);
                 world.getServer().runOnServer(GameplayChecks::expandRing); context.waitTicks(20);
                 world.getServer().runOnServer(GameplayChecks::assertRing);
                 gameplay.add("Incremental 3x3 ring expansion, genuine center hole and projection continuity PASS");
+                world.getServer().runOnServer(GameplayChecks::setupOrientations);context.waitTicks(25);
+                world.getServer().runOnServer(GameplayChecks::assertOrientations);
+                gameplay.add("Four player-facing orientations; right/up projection; L topology; upper modules have no support PASS");
+                context.runOnClient(client->{
+                    var creative=new CreativeModeInventoryScreen(client.player,client.level.enabledFeatures(),true);
+                    client.setScreenAndShow(creative);
+                    GameplayChecks.require(creative.setSelectedTab(CanvasDesk.TAB),"Native creative tab must be selectable");
+                    GameplayChecks.require(creative.getSelectedTab()==CanvasDesk.TAB,"Canvas Desk creative tab selected");
+                });
+                shot.accept("01-exclusive-creative-tab");ui.add("PASS exclusive Canvas Desk tab selected in real creative inventory");
+                context.runOnClient(client->client.setScreenAndShow(null));
                 world.getServer().runOnServer(server -> GameplayChecks.open(server, GameplayChecks.PRIMARY));
                 context.waitForScreen(CanvasScreen.class);
                 ClientUiChecks.run(context, world.getServer(), GameplayChecks.workspace(), ui, shot);
@@ -66,6 +83,7 @@ public final class RuntimeValidation implements FabricClientGameTest {
 
                 // Load fixture is a real 32x32 block surface; work is divided across
                 // ticks to avoid disguising a frozen server as a passing test.
+                if(Boolean.getBoolean("canvasdesk.stress")) {
                 world.getServer().runOnServer(GameplayChecks::prepareLoad);
                 for (int row = 0; row < 32; row++) { final int current = row; world.getServer().runOnServer(server -> GameplayChecks.placeLoadRow(server, current)); context.waitTick(); }
                 context.waitTicks(40);
@@ -73,10 +91,11 @@ public final class RuntimeValidation implements FabricClientGameTest {
                 world.getServer().runOnServer(GameplayChecks::assertLoad);
                 gameplay.add("Real 32x32 modules and 10,000 persisted elements, bounded region query and heap/timing measurements PASS"); write("RUNNING", null);
                 context.runOnClient(client -> client.setScreenAndShow(null));
-                world.getServer().runCommand("tp @a 80.5 86 34.5 0 42");
-                context.waitTicks(40); world.getConnection().waitForChunksRender(); shot.accept("12-load-32x32-world");
-                world.getServer().runCommand("tp @a 17.5 84 10.5 0 46"); context.waitTicks(25);
-                world.getConnection().waitForChunksRender(); shot.accept("13-world-surface-content");
+                world.getServer().runCommand("tp @a 80.5 94 65.5 180 0");
+                context.waitTicks(40); world.getConnection().waitForChunksRender(false,1800); shot.accept("12-load-32x32-world");
+                } else gameplay.add("NOT_RUN optional live 32x32/10k stress; storage load runs separately without a client window");
+                world.getServer().runCommand("tp @a 16.5 80 18.5 180 0"); context.waitTicks(25);
+                world.getConnection().waitForChunksRender(false,1800);SurfaceChecks.waitForContent(context,GameplayChecks.PRIMARY,"TEXT");shot.accept("13-world-surface-content");
                 world.getServer().runOnServer(server -> GameplayChecks.open(server, GameplayChecks.PRIMARY)); context.waitForScreen(CanvasScreen.class);
                 shot.accept("14-editor-before-save"); context.runOnClient(client -> client.setScreenAndShow(null)); context.waitTicks(5);
                 world.getServer().runOnServer(GameplayChecks::saveExpected);

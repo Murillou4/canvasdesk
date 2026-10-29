@@ -18,6 +18,65 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CanvasStoreTest {
+    @Test void typingCheckpointsUndoAsOneActionAcrossRestart() throws Exception {
+        UUID doc,element=UUID.randomUUID(),group=UUID.randomUUID();
+        try(CanvasStore store=new CanvasStore(directory)){
+            doc=store.create(owner);success(store.action(doc,owner,typing(element,-1,"ação",group)));
+            success(store.action(doc,owner,typing(element,0,"ação\npróxima",group)));
+        }
+        try(CanvasStore store=new CanvasStore(directory)){
+            success(store.action(doc,owner,typing(element,1,"ação\npróxima revisão",group)));
+            success(store.action(doc,owner,action("undo")));assertEquals(0,store.elementCount(doc));
+            success(store.action(doc,owner,action("redo")));assertEquals("ação\npróxima revisão",onlyElement(store,doc).get("text").getAsString());
+        }
+    }
+    @Test void distinctTypingBurstsHaveSeparateUndoBoundaries() throws Exception {
+        try(CanvasStore store=new CanvasStore(directory)){
+            UUID doc=store.create(owner),id=UUID.randomUUID();
+            success(store.action(doc,owner,typing(id,-1,"primeiro",UUID.randomUUID())));
+            success(store.action(doc,owner,typing(id,0,"primeiro segundo",UUID.randomUUID())));
+            success(store.action(doc,owner,action("undo")));assertEquals("primeiro",onlyElement(store,doc).get("text").getAsString());
+            success(store.action(doc,owner,action("undo")));assertEquals(0,store.elementCount(doc));
+        }
+    }
+    @Test void collaboratorEditEndsTypingCoalescingWithoutOverwritingTheirElement() throws Exception {
+        try(CanvasStore store=new CanvasStore(directory)){
+            UUID doc=store.create(owner),id=UUID.randomUUID(),peer=UUID.randomUUID(),group=UUID.randomUUID();
+            success(store.action(doc,owner,invite(other)));
+            success(store.action(doc,owner,typing(id,-1,"a",group)));
+            success(store.action(doc,other,edit(UUID.randomUUID(),change(peer,-1,element(peer,10,10)))));
+            success(store.action(doc,owner,typing(id,0,"ab",group)));
+            success(store.action(doc,owner,action("undo")));
+            assertEquals("a",store.element(doc,id).get("text").getAsString());assertNotNull(store.element(doc,peer));
+            assertEquals(2,store.elementCount(doc));
+        }
+    }
+    @Test void typingMetadataCannotBypassAtomicValidation() throws Exception {
+        try(CanvasStore store=new CanvasStore(directory)){
+            UUID doc=store.create(owner),id=UUID.randomUUID();
+            JsonObject request=edit(UUID.randomUUID(),change(id,-1,element(id,0,0)));request.addProperty("typingGroup",UUID.randomUUID().toString());
+            failure(store.action(doc,owner,request));assertEquals(0,store.elementCount(doc));
+            failure(store.action(doc,other,typing(id,-1,"sem acesso",UUID.randomUUID())));assertEquals(0,store.elementCount(doc));
+        }
+    }
+    private static JsonObject typing(UUID id,long revision,String text,UUID group){
+        JsonObject e=element(id,20,30);e.addProperty("type","TEXT");e.addProperty("text",text);
+        JsonObject r=edit(UUID.randomUUID(),change(id,revision,e));r.addProperty("typingGroup",group.toString());return r;
+    }
+    @Test void fontSizeDefaultsValidateAndSurviveRestart() throws Exception {
+        JsonObject value=element(UUID.randomUUID(),0,0);assertEquals(9,CanvasElement.fromJson(value).fontSize());
+        value.addProperty("fontSize",18);assertEquals(18,CanvasElement.fromJson(value).fontSize());
+        for(double invalid:new double[]{7,97,Double.NaN,Double.POSITIVE_INFINITY}) {
+            value.addProperty("fontSize",invalid);assertThrows(IllegalArgumentException.class,()->CanvasElement.fromJson(value));
+        }
+        value.addProperty("fontSize",36);
+        assertEquals(36,CanvasElement.fromJson(CanvasElement.fromJson(value).translated(2,3,null).withRevision(4).toJson()).fontSize());
+        UUID workspace;
+        try(CanvasStore store=new CanvasStore(directory)) {
+            workspace=store.create(owner);success(store.action(workspace,owner,edit(UUID.randomUUID(),change(UUID.fromString(value.get("id").getAsString()),-1,value))));
+        }
+        try(CanvasStore store=new CanvasStore(directory)){assertEquals(36,onlyElement(store,workspace).get("fontSize").getAsDouble());}
+    }
     @TempDir Path directory;
     private final UUID owner = UUID.randomUUID(), other = UUID.randomUUID();
 
@@ -179,7 +238,10 @@ class CanvasStoreTest {
             JsonObject state = view(store, target); JsonObject merge = state.getAsJsonArray("merges").get(0).getAsJsonObject();
             assertEquals(2, merge.getAsJsonArray("owners").size()); assertEquals(1, merge.getAsJsonArray("editors").size());
             JsonObject approve = action("approveMerge"); approve.addProperty("requestId", pending.get("requestId").getAsString());
+            assertEquals(0,merge.getAsJsonArray("approved").size(),"Physical request must not imply owner consent");
             failure(store.action(target, editor, approve)); success(store.action(source, other, approve));
+            assertEquals(source,store.resolve(source),"One of two owners is still pending");
+            success(store.action(target,owner,approve));
             assertEquals(target, store.resolve(source)); assertArrayEquals(new double[]{256, -256}, store.projectionOffset(source));
             JsonObject e = onlyElement(store, target); assertEquals(a.toString(), e.get("id").getAsString());
             assertEquals(273, e.get("x").getAsDouble()); assertEquals(-233, e.get("y").getAsDouble());

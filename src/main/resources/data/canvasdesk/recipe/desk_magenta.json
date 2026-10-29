@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_transmute",
+  "group": "canvasdesk_dye",
+  "input": "canvasdesk:desk",
+  "material": "minecraft:magenta_dye",
+  "result": {
+    "id": "canvasdesk:desk",
+    "components": {
+      "minecraft:block_state": {
+        "color": "magenta"
+      }
+    }
+  }
+}

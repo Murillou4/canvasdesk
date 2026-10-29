@@ -14,7 +14,7 @@ public final class CanvasElementView {
 
     public final JsonObject json;
     public final String id, type, text, from, to, group;
-    public final double x, y, w, h, thickness;
+    public final double x, y, w, h, thickness, fontSize;
     public final int color;
     public final long revision;
     public final List<Point> points;
@@ -32,6 +32,7 @@ public final class CanvasElementView {
         w = number(object, "w", 100); h = number(object, "h", 60);
         color = (int) number(object, "color", 0x30302c);
         thickness = number(object, "thickness", 3);
+        fontSize = number(object, "fontSize", 9);
         revision = (long) number(object, "revision", 0);
         points = new ArrayList<>();
         if (object.has("points") && object.get("points").isJsonArray()) {
@@ -60,6 +61,10 @@ public final class CanvasElementView {
     public CanvasElementView resized(double width, double height) {
         JsonObject copy = json.deepCopy();
         width = Math.max(8, width); height = Math.max(8, height);
+        if (type.equals("CHECKLIST")||type.equals("TEXT")) {
+            double factor = Math.clamp((width * w + height * h) / Math.max(1,w*w+h*h),8/fontSize,96/fontSize);
+            width=w*factor;height=h*factor;copy.addProperty("fontSize",fontSize*factor);
+        }
         copy.addProperty("w", width); copy.addProperty("h", height);
         JsonArray scaled = new JsonArray();
         for (Point p : points) scaled.add(point(x + (p.x - x) * width / Math.max(1, w), y + (p.y - y) * height / Math.max(1, h)));
@@ -72,6 +77,7 @@ public final class CanvasElementView {
         e.addProperty("id", UUID.randomUUID().toString()); e.addProperty("type", type);
         e.addProperty("x", x); e.addProperty("y", y); e.addProperty("w", w); e.addProperty("h", h);
         e.addProperty("color", color); e.addProperty("thickness", thickness); e.addProperty("text", "");
+        e.addProperty("fontSize",type.equals("CHECKLIST")?18:9);
         e.addProperty("revision", 0); e.add("points", new JsonArray()); e.add("checks", new JsonArray());
         return e;
     }

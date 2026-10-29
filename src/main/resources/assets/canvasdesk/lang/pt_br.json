@@ -1,7 +1,7 @@
 {
-  "block.canvasdesk.desk": "Mesa Canvas",
+  "block.canvasdesk.desk": "Quadro Canvas Desk",
   "itemGroup.canvasdesk": "Canvas Desk",
-  "tooltip.canvasdesk.desk": "Uma bancada de escribas movida a redstone. Junte módulos para ampliar seu canvas.",
+  "tooltip.canvasdesk.desk": "Um quadro branco modular. Amplie para os lados e para cima.",
   "tooltip.canvasdesk.desk.linked": "Documento vinculado: %s",
   "tooltip.canvasdesk.desk.open": "Clique direito para desenhar e escrever.",
   "tooltip.canvasdesk.desk.preserved": "A mesa preserva seu documento quando quebrada.",
@@ -29,6 +29,7 @@
   "message.canvasdesk.merge_pending": "Esta união precisa da aprovação de todos os donos dos documentos.",
   "message.canvasdesk.store_error": "Não foi possível salvar o documento. Sua alteração não foi confirmada.",
   "lore.canvasdesk.desk": "O cobre conduz o pulso; o papel guarda o pensamento.",
+  "block.canvasdesk.drawing_desk": "Prancheta Canvas Desk",
   "tool.canvasdesk.select": "Selecionar",
   "tool.canvasdesk.pen": "Desenho livre",
   "tool.canvasdesk.brush": "Desenho livre",

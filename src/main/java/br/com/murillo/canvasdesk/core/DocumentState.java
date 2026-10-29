@@ -53,6 +53,8 @@ final class DocumentState {
     final Map<UUID, Deque<History>> redo = new LinkedHashMap<>();
     final Map<UUID, Receipt> receipts = new LinkedHashMap<>();
     private CanvasElement.Bounds cachedBounds;
+    private UUID typingGroup,typingActor,typingElement;
+    private long typingRevision;
 
     DocumentState(UUID id) { this.id = id; }
     State state(UUID element) { return new State(index.entries.get(element), versions.getOrDefault(element, -1L)); }
@@ -73,8 +75,22 @@ final class DocumentState {
         return cachedBounds = new CanvasElement.Bounds(minX, minY, maxX, maxY);
     }
     void history(UUID actor, String mode, History history) {
+        history(actor,mode,history,null,null);
+    }
+    void history(UUID actor,String mode,History history,UUID group,UUID element){
         if (mode.equals("normal")) {
-            push(undo, actor, history); redo.remove(actor);
+            Deque<History> stack=undo.get(actor);
+            boolean combine=group!=null&&group.equals(typingGroup)&&actor.equals(typingActor)&&element.equals(typingElement)
+                &&typingRevision==revision&&stack!=null&&!stack.isEmpty();
+            Map<UUID,Change> joined=new LinkedHashMap<>();
+            if(combine){
+                for(Change c:stack.getLast().changes)joined.put(c.id,c);
+                for(Change c:history.changes){Change old=joined.get(c.id);if(old!=null&&!old.after.equals(c.before)){combine=false;break;}
+                    joined.put(c.id,new Change(c.id,old==null?c.before:old.before,c.after));}
+            }
+            if(combine){stack.removeLast();push(undo,actor,new History(new ArrayList<>(joined.values())));}
+            else push(undo, actor, history);
+            redo.remove(actor);
         } else if (mode.equals("undo")) {
             History previous = undo.get(actor).removeLast();
             rebase(undo.get(actor), previous, history); push(redo, actor, history);
@@ -82,6 +98,7 @@ final class DocumentState {
             History previous = redo.get(actor).removeLast();
             rebase(redo.get(actor), previous, history); push(undo, actor, history);
         } else throw new IllegalArgumentException("Unknown history mode.");
+        typingGroup=mode.equals("normal")?group:null;typingActor=actor;typingElement=element;typingRevision=revision+1;
     }
     /** Restoring an older value gives it a fresh revision; advance the actor's next expected baseline. */
     private static void rebase(Deque<History> stack, History previous, History applied) {
@@ -116,7 +133,9 @@ final class DocumentState {
         out.add("undo", historyJson(undo)); out.add("redo", historyJson(redo));
         JsonObject r = new JsonObject(); receipts.forEach((id, receipt) -> {
             JsonObject item = new JsonObject(); item.addProperty("actor", receipt.actor.toString()); item.addProperty("message", receipt.message); r.add(id.toString(), item);
-        }); out.add("receipts", r); return out;
+        }); out.add("receipts", r);
+        if(typingGroup!=null){JsonObject t=new JsonObject();t.addProperty("group",typingGroup.toString());t.addProperty("actor",typingActor.toString());t.addProperty("element",typingElement.toString());t.addProperty("revision",typingRevision);out.add("typing",t);}
+        return out;
     }
     static DocumentState fromJson(JsonObject o) {
         DocumentState doc = new DocumentState(UUID.fromString(o.get("id").getAsString()));
@@ -133,7 +152,9 @@ final class DocumentState {
         o.getAsJsonObject("receipts").entrySet().forEach(e -> {
             JsonObject receipt = e.getValue().getAsJsonObject(); doc.receipts.put(UUID.fromString(e.getKey()),
                 new Receipt(UUID.fromString(receipt.get("actor").getAsString()), receipt.get("message").getAsString()));
-        }); return doc;
+        });
+        if(o.has("typing")){JsonObject t=o.getAsJsonObject("typing");doc.typingGroup=UUID.fromString(t.get("group").getAsString());doc.typingActor=UUID.fromString(t.get("actor").getAsString());doc.typingElement=UUID.fromString(t.get("element").getAsString());doc.typingRevision=t.get("revision").getAsLong();}
+        return doc;
     }
     static JsonArray ids(Iterable<UUID> ids) { JsonArray out = new JsonArray(); ids.forEach(id -> out.add(id.toString())); return out; }
     static Set<UUID> readIds(JsonArray values) {

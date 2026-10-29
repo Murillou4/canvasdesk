@@ -1,0 +1,844 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "facing": "north",
+        "color": "white"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_white",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "white"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_white",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "white"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_white",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "white"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_white",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "orange"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_orange",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "orange"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_orange",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "orange"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_orange",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "orange"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_orange",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "magenta"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_magenta",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "magenta"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_magenta",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "magenta"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_magenta",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "magenta"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_magenta",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "light_blue"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_light_blue",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "light_blue"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_light_blue",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "light_blue"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_light_blue",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "light_blue"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_light_blue",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "yellow"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_yellow",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "yellow"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_yellow",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "yellow"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_yellow",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "yellow"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_yellow",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "lime"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_lime",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "lime"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_lime",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "lime"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_lime",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "lime"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_lime",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "pink"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_pink",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "pink"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_pink",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "pink"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_pink",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "pink"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_pink",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "gray"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_gray",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "gray"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_gray",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "gray"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_gray",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "gray"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_gray",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "light_gray"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_light_gray",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "light_gray"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_light_gray",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "light_gray"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_light_gray",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "light_gray"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_light_gray",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "cyan"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_cyan",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "cyan"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_cyan",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "cyan"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_cyan",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "cyan"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_cyan",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "purple"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_purple",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "purple"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_purple",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "purple"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_purple",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "purple"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_purple",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "blue"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_blue",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "blue"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_blue",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "blue"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_blue",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "blue"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_blue",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "brown"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_brown",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "brown"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_brown",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "brown"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_brown",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "brown"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_brown",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "green"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_green",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "green"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_green",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "green"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_green",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "green"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_green",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "red"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_red",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "red"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_red",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "red"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_red",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "red"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_red",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "color": "black"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_black",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "color": "black"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_black",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "color": "black"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_black",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "color": "black"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_base_black",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "up": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_up_white",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "up": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_up_white",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "up": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_up_white",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "up": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_up_white",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "down": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_down_white",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "down": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_down_white",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "down": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_down_white",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "down": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_down_white",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "left": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_left_white",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "left": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_left_white",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "left": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_left_white",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "left": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_left_white",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "right": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_right_white",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "right": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_right_white",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "right": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_right_white",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "right": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_edge_right_white",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "down": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_stationery_white",
+        "y": 0
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "down": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_stationery_white",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "down": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_stationery_white",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "down": "false"
+      },
+      "apply": {
+        "model": "canvasdesk:block/drawing_desk_horizontal_stationery_white",
+        "y": 270
+      }
+    }
+  ]
+}

@@ -62,27 +62,19 @@ public final class CanvasPainter {
                     g.fill(0, 0, 3, (int) e.h, ink);
                 }
                 if (v.zoom >= 0.22) {
-                    int pad = e.type.equals("TEXT") ? 0 : 9;
-                    int maxWidth = Math.max(8, (int) e.w - pad * 2 - (e.type.equals("CHECKLIST") ? 14 : 0));
-                    int y = pad;
-                    List<String> lines = List.of(e.text.split("\n", -1));
-                    for (int i = 0; i < lines.size(); i++) {
-                        if (y + 9 > e.h - (e.type.equals("TEXT") ? 0 : 4)) break;
-                        int textX = pad;
-                        if (e.type.equals("CHECKLIST")) {
-                            rectangle(g, pad, y, pad + 8, y + 8, 1, ink);
-                            if (i < e.checks.size() && e.checks.get(i)) {
-                                line(g, pad + 1, y + 4, pad + 4, y + 7, 1.4, ink);
-                                line(g, pad + 4, y + 7, pad + 8, y + 1, 1.4, ink);
-                            }
-                            textX += 14;
+                    CanvasTextLayout layout=CanvasTextLayout.of(font,e);double s=layout.scale();
+                    for(var check:layout.checks()) {
+                        double x=layout.padding(),y=check.y(),b=layout.boxSize();
+                        rectangle(g,x,y,x+b,y+b,s,ink);
+                        if(check.index()<e.checks.size()&&e.checks.get(check.index())) {
+                            line(g,x+s,y+4*s,x+4*s,y+7*s,1.4*s,ink);
+                            line(g,x+4*s,y+7*s,x+8*s,y+s,1.4*s,ink);
                         }
-                        for (var visualLine : font.split(Component.literal(lines.get(i)), maxWidth)) {
-                            if (y + 9 > e.h - (e.type.equals("TEXT") ? 0 : 4)) break;
-                            g.text(font, visualLine, textX, y, ink, false);
-                            y += 12;
-                        }
-                        if (lines.get(i).isEmpty()) y += 12;
+                    }
+                    for(var text:layout.lines()) {
+                        if(v.screenY(e.y+text.y()+12*s)<v.top||v.screenY(e.y+text.y())>v.bottom)continue;
+                        g.pose().pushMatrix();g.pose().translate((float)layout.textX(),(float)text.y()).scale((float)s,(float)s);
+                        g.text(font,text.value(),0,0,ink,false);g.pose().popMatrix();
                     }
                 }
             }

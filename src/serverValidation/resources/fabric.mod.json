@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "canvasdesk-server-validation",
+  "version": "1.1.0",
+  "name": "Canvas Desk headless validation (test only)",
+  "environment": "server",
+  "entrypoints": { "main": ["br.com.murillo.canvasdesk.validation.DedicatedValidation"] },
+  "depends": { "canvasdesk": "*" }
+}

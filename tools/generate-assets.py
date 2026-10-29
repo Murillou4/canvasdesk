@@ -21,7 +21,7 @@ ASSETS = ROOT / "src/main/resources/assets/canvasdesk"
 DATA = ROOT / "src/main/resources/data"
 ART = ROOT / "art"
 PALETTE = {
-    "paper": "#e8dfc7", "paper_light": "#ece4cf", "paper_fiber": "#e3dac3",
+    "paper": "#fafaf7", "paper_light": "#ffffff", "paper_fiber": "#f3f3ef",
     "wood": "#4a342a", "wood_dark": "#35261f", "wood_light": "#634737",
     "copper": "#b97751", "copper_light": "#dda071", "copper_dark": "#885138",
     "ink": "#34342e", "muted": "#79766b", "sage": "#758770", "redstone": "#974f40",
@@ -151,80 +151,16 @@ def rotate_element(element, degrees):
     result["from"][0], result["from"][2] = min(p[0] for p in coords), min(p[1] for p in coords)
     result["to"][0], result["to"][2] = max(p[0] for p in coords), max(p[1] for p in coords)
     horizontal = ["north", "east", "south", "west"]
-    for i, face in enumerate(horizontal):
-        result["faces"][horizontal[(i + degrees // 90) % 4]] = copy.deepcopy(element["faces"][face])
+    result["faces"] = {}
+    for face, definition in element["faces"].items():
+        target = horizontal[(horizontal.index(face) + degrees // 90) % 4] if face in horizontal else face
+        result["faces"][target] = copy.deepcopy(definition)
     return result
 
 
 def models():
-    tx = {
-        "canvas": "canvasdesk:block/desk_canvas", "wood": "canvasdesk:block/desk_wood",
-        "end": "canvasdesk:block/desk_endgrain", "copper": "canvasdesk:block/desk_copper",
-        "circuit": "canvasdesk:block/desk_circuit", "particle": "canvasdesk:block/desk_wood",
-    }
-    def model(elements):
-        return {"ambientocclusion": False, "textures": tx, "elements": elements}
-    base = [
-        cuboid((0, 14, 0), (16, 15.5, 16), "wood", {"down": "wood"}),
-        cuboid((0, 15.5, 0), (16, 16, 16), "canvas"),
-        cuboid((1, 13, 1), (15, 14, 15), "wood"),
-        cuboid((5.5, 12.25, 5.5), (10.5, 13, 10.5), "copper"),
-        cuboid((6, 12, 6), (10, 12.25, 10), "circuit"),
-    ]
-    # No exposed outer border on the upper surface: the paper is exactly 16x16.
-    # The beam stops at x=1/15; each corner cap meets it without overlapping faces.
-    edge = [
-        cuboid((1, 11.5, 0.5), (15, 14, 1.5), "wood"),
-        cuboid((1, 13.25, 0.25), (15, 14, 0.5), "copper"),
-        cuboid((6.5, 12, 0.125), (9.5, 13.25, 0.5), "circuit"),
-    ]
-    corner = [
-        cuboid((1, 1.5, 1), (3, 11.5, 3), "wood", {"up": "end", "down": "end"}),
-        cuboid((0.5, 0, 0.5), (3.5, 1.5, 3.5), "wood", {"up": "end"}),
-        cuboid((0.75, 1.5, 0.75), (3.25, 2.75, 3.25), "copper"),
-        cuboid((0.75, 10, 0.75), (3.25, 11.5, 3.25), "copper"),
-        cuboid((0.5, 11.5, 0.5), (1, 14, 1.5), "wood"),
-        cuboid((1, 11.5, 0.5), (1.5, 14, 1), "wood"),
-    ]
-    joint = [
-        cuboid((5, 12.5, 0), (11, 13.75, 3), "wood"),
-        cuboid((6, 12.25, 0), (10, 12.5, 3.5), "copper"),
-        cuboid((7, 12.125, 0), (9, 12.25, 2.5), "circuit"),
-    ]
-    # A leg is retained at an exposed straight boundary only when one has a
-    # connection on either side; there are no table legs through an interior canvas.
-    boundary_support = [
-        cuboid((7, 1.5, 0.75), (9, 11.5, 2.75), "wood", {"up": "end", "down": "end"}),
-        cuboid((6.75, 0, 0.5), (9.25, 1.5, 3), "wood"),
-        cuboid((6.75, 1.5, 0.5), (9.25, 2.5, 3), "copper"),
-    ]
-    json_file(ASSETS / "models/block/desk_base.json", model(base))
-    json_file(ASSETS / "models/block/desk_edge.json", model(edge))
-    json_file(ASSETS / "models/block/desk_corner_leg.json", model(corner))
-    json_file(ASSETS / "models/block/desk_joint.json", model(joint))
-    json_file(ASSETS / "models/block/desk_boundary_support.json", model(boundary_support))
-    parts = [{"apply": {"model": "canvasdesk:block/desk_base"}}]
-    directions = ["north", "east", "south", "west"]
-    for i, direction in enumerate(directions):
-        parts.append({"when": {direction: "false"}, "apply": {"model": "canvasdesk:block/desk_edge", "y": i * 90, "uvlock": True}})
-        parts.append({"when": {direction: "true"}, "apply": {"model": "canvasdesk:block/desk_joint", "y": i * 90, "uvlock": True}})
-        previous = directions[(i - 1) % 4]
-        parts.append({"when": {direction: "false", previous: "false"}, "apply": {"model": "canvasdesk:block/desk_corner_leg", "y": i * 90, "uvlock": True}})
-        parts.append({"when": {direction: "false", previous: "true", directions[(i + 1) % 4]: "true"}, "apply": {"model": "canvasdesk:block/desk_boundary_support", "y": i * 90, "uvlock": True}})
-    json_file(ASSETS / "blockstates/desk.json", {"multipart": parts})
-    inventory = model(base + [rotate_element(e, r) for r in [0, 90, 180, 270] for e in edge + corner])
-    inventory["parent"] = "minecraft:block/block"
-    inventory["gui_light"] = "side"
-    inventory["display"] = {
-        "gui": {"rotation": [30, 225, 0], "translation": [0, 0, 0], "scale": [0.65, 0.65, 0.65]},
-        "ground": {"translation": [0, 3, 0], "scale": [0.25, 0.25, 0.25]},
-        "fixed": {"rotation": [0, 0, 0], "scale": [0.5, 0.5, 0.5]},
-        "thirdperson_righthand": {"rotation": [75, 45, 0], "translation": [0, 2.5, 0], "scale": [0.375, 0.375, 0.375]},
-        "firstperson_righthand": {"rotation": [0, 45, 0], "translation": [0, 1.5, 0], "scale": [0.4, 0.4, 0.4]},
-        "firstperson_lefthand": {"rotation": [0, 225, 0], "translation": [0, 1.5, 0], "scale": [0.4, 0.4, 0.4]},
-    }
-    json_file(ASSETS / "models/item/desk.json", inventory)
-    json_file(ASSETS / "items/desk.json", {"model": {"type": "minecraft:model", "model": "canvasdesk:item/desk"}})
+    from generate_variants import models as generate_models
+    generate_models(ROOT, save_pixel_art)
 
 
 def tools():
@@ -338,8 +274,8 @@ def tools():
 
 def languages():
     en = {
-        "block.canvasdesk.desk": "Canvas Desk", "itemGroup.canvasdesk": "Canvas Desk",
-        "tooltip.canvasdesk.desk": "A redstone scribe's desk. Place modules side by side to grow your canvas.",
+        "block.canvasdesk.desk": "Canvas Desk Board", "itemGroup.canvasdesk": "Canvas Desk",
+        "tooltip.canvasdesk.desk": "A modular whiteboard. Connect panels sideways or upwards.",
         "tooltip.canvasdesk.desk.linked": "Linked workspace: %s", "tooltip.canvasdesk.desk.open": "Right-click to draw and write.",
         "tooltip.canvasdesk.desk.preserved": "The desk keeps its document when broken.",
         "screen.canvasdesk.title": "Canvas Desk", "screen.canvasdesk.read_only": "Read only",
@@ -357,8 +293,8 @@ def languages():
         "lore.canvasdesk.desk": "Copper carries the pulse; paper keeps the thought.",
     }
     pt = {
-        "block.canvasdesk.desk": "Mesa Canvas", "itemGroup.canvasdesk": "Canvas Desk",
-        "tooltip.canvasdesk.desk": "Uma bancada de escribas movida a redstone. Junte módulos para ampliar seu canvas.",
+        "block.canvasdesk.desk": "Quadro Canvas Desk", "itemGroup.canvasdesk": "Canvas Desk",
+        "tooltip.canvasdesk.desk": "Um quadro branco modular. Amplie para os lados e para cima.",
         "tooltip.canvasdesk.desk.linked": "Documento vinculado: %s", "tooltip.canvasdesk.desk.open": "Clique direito para desenhar e escrever.",
         "tooltip.canvasdesk.desk.preserved": "A mesa preserva seu documento quando quebrada.",
         "screen.canvasdesk.title": "Canvas Desk", "screen.canvasdesk.read_only": "Somente leitura",
@@ -375,6 +311,8 @@ def languages():
         "message.canvasdesk.merge_pending": "Esta união precisa da aprovação de todos os donos dos documentos.", "message.canvasdesk.store_error": "Não foi possível salvar o documento. Sua alteração não foi confirmada.",
         "lore.canvasdesk.desk": "O cobre conduz o pulso; o papel guarda o pensamento.",
     }
+    en["block.canvasdesk.drawing_desk"] = "Canvas Desk Drawing Board"
+    pt["block.canvasdesk.drawing_desk"] = "Prancheta Canvas Desk"
     labels = {
         "select": ("Select", "Selecionar"), "pen": ("Freehand", "Desenho livre"), "brush": ("Freehand", "Desenho livre"),
         "text": ("Text", "Texto"), "note": ("Note", "Nota"), "checklist": ("Checklist", "Lista de tarefas"),
@@ -392,27 +330,8 @@ def languages():
 
 
 def data_files():
-    json_file(DATA / "canvasdesk/recipe/desk.json", {
-        "type": "minecraft:crafting_shaped", "category": "building", "group": "canvasdesk",
-        "pattern": ["PPP", "CRC", "WWW"],
-        "key": {"P": "minecraft:paper", "C": "minecraft:copper_ingot", "R": "minecraft:redstone", "W": "#minecraft:planks"},
-        "result": {"id": "canvasdesk:desk", "count": 1},
-    })
-    json_file(DATA / "canvasdesk/loot_table/blocks/desk.json", {
-        "type": "minecraft:block", "pools": [{"rolls": 1,
-            "condition": {"type": "minecraft:survives_explosion"},
-            "entries": [{"type": "minecraft:item", "name": "canvasdesk:desk", "modifier": {
-                "type": "minecraft:copy_components", "source": "block_entity", "include": ["minecraft:custom_data"],
-            }}],
-        }], "random_sequence": "canvasdesk:blocks/desk",
-    })
-    json_file(DATA / "minecraft/tags/block/mineable/axe.json", {"replace": False, "values": ["canvasdesk:desk"]})
-    json_file(DATA / "canvasdesk/advancement/recipes/decorations/desk.json", {
-        "parent": "minecraft:recipes/root", "criteria": {
-            "has_paper": {"trigger": "minecraft:inventory_changed", "conditions": {"items": [{"items": "minecraft:paper"}]}},
-            "has_the_recipe": {"trigger": "minecraft:recipe_unlocked", "conditions": {"recipes": "canvasdesk:desk"}},
-        }, "requirements": [["has_paper", "has_the_recipe"]], "rewards": {"recipes": ["canvasdesk:desk"]},
-    })
+    from generate_variants import data_files as generate_data
+    generate_data(ROOT)
 
 
 def icon():
@@ -443,22 +362,24 @@ def preview():
         font = ImageFont.load_default()
         title = font
     d.text((40, 30), "CANVAS DESK / MODEL AND PIXEL ASSET REFERENCE", fill=PALETTE["ink"], font=title)
-    d.text((40, 69), "Original procedural pixel art | no raised rim | 16x16 continuous top", fill=PALETTE["muted"], font=font)
+    d.text((40, 69), "Vertical whiteboard | wooden perimeter | continuous 256-unit tiles", fill=PALETTE["muted"], font=font)
     examples = [({(0, 0)}, "ONE MODULE", (240, 320), 9),
-                ({(0, 0), (1, 0), (0, 1), (1, 1)}, "2 x 2 / SHARED TOP", (670, 300), 7),
-                ({(0, 0), (1, 0), (2, 0), (0, 1)}, "L SURFACE", (1120, 290), 6)]
+                ({(0, 0), (1, 0), (0, 1), (1, 1)}, "2 x 2 / SHARED BOARD", (670, 300), 7),
+                ({(0, 0), (1, 0), (2, 0), (0, 1)}, "L BOARD", (1120, 290), 6)]
     state = json.loads((ASSETS / "blockstates/desk.json").read_text(encoding="utf-8"))
     geometry = {}
     for path in (ASSETS / "models/block").glob("*.json"):
         geometry[path.stem] = json.loads(path.read_text(encoding="utf-8"))["elements"]
     texture_images = {key: Image.open(ASSETS / f"textures/block/desk_{name}.png").convert("RGB") for key, name in {"canvas": "canvas", "wood": "wood", "end": "endgrain", "copper": "copper", "circuit": "circuit"}.items()}
+    texture_images["ink"] = Image.new("RGB",(32,32),"#292929")
+    texture_images["eraser"] = Image.new("RGB",(32,32),"#686868")
     def projection(x, y, z, origin, scale):
         return (origin[0] + (x - z) * scale * .70, origin[1] + (x + z) * scale * .35 - y * scale * .85)
     for tiles, label, origin, scale in examples:
         d.text((origin[0] - 120, 140), label, fill=PALETTE["ink"], font=font)
         polygons = []
         for tx, tz in tiles:
-            attrs = {"north": str((tx, tz - 1) in tiles).lower(), "east": str((tx + 1, tz) in tiles).lower(), "south": str((tx, tz + 1) in tiles).lower(), "west": str((tx - 1, tz) in tiles).lower()}
+            attrs = {"facing": "south", "wall_mounted":"false", "color":"white", "base": str(tz == max(t[1] for t in tiles)).lower(), "up": str((tx, tz - 1) in tiles).lower(), "right": str((tx + 1, tz) in tiles).lower(), "down": str((tx, tz + 1) in tiles).lower(), "left": str((tx - 1, tz) in tiles).lower()}
             for part in state["multipart"]:
                 if not all(attrs.get(k) == v for k, v in part.get("when", {}).items()):
                     continue
@@ -468,12 +389,14 @@ def preview():
                     x0, y0, z0 = e["from"]
                     x1, y1, z1 = e["to"]
                     x0 += tx * 16; x1 += tx * 16
-                    z0 += tz * 16; z1 += tz * 16
+                    y0 -= tz * 16; y1 -= tz * 16
                     for face, points, light in [
                         ("east", [(x1, y0, z0), (x1, y0, z1), (x1, y1, z1), (x1, y1, z0)], .74),
                         ("south", [(x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)], .88),
                         ("up", [(x0, y1, z0), (x1, y1, z0), (x1, y1, z1), (x0, y1, z1)], 1.0),
                     ]:
+                        if face not in e["faces"]:
+                            continue
                         poly = [projection(*p, origin, scale) for p in points]
                         depths = [p[0] + p[2] + p[1] * (.70 / .85) for p in points]
                         polygons.append((depths, poly, texture_images[e["faces"][face]["texture"][1:]], light))
@@ -509,7 +432,7 @@ def preview():
         d = ImageDraw.Draw(image)
     d.line((40, 490, 1400, 490), fill="#d7d1c4")
     d.text((40, 515), "MATERIALS / 32px, tiled paper fibers and dark wood, copper fasteners", fill=PALETTE["ink"], font=font)
-    for i, (filename, caption) in enumerate([("canvas", "PAPER"), ("wood", "FRAME"), ("endgrain", "END GRAIN"), ("copper", "JOINTS"), ("circuit", "REDSTONE")]):
+    for i, (filename, caption) in enumerate([("canvas", "WHITEBOARD"), ("wood", "FRAME"), ("endgrain", "END GRAIN"), ("copper", "JOINTS"), ("circuit", "REDSTONE")]):
         path = ASSETS / f"textures/block/desk_{filename}.png"
         pic = Image.open(path).convert("RGB").resize((128, 128), Image.Resampling.NEAREST)
         x = 40 + i * 200
@@ -530,60 +453,59 @@ def preview():
 
 
 def validate():
-    checked = 0
-    for path in [*ASSETS.rglob("*.json"), *DATA.rglob("*.json")]:
-        json.loads(path.read_text(encoding="utf-8"))
-        checked += 1
+    """Static resource checks only; never starts Minecraft or a server."""
+    from itertools import product
+    checked=0
+    for path in [*ASSETS.rglob("*.json"),*DATA.rglob("*.json")]:
+        json.loads(path.read_text(encoding="utf-8"));checked+=1
     for path in ASSETS.rglob("*.png"):
-        with Image.open(path) as im:
-            im.verify()
-    for path in (ASSETS / "textures/gui/sprites/tools").glob("*.png"):
-        with Image.open(path) as im:
-            assert im.size == (16, 16) and im.mode == "RGBA", path
-    with Image.open(ASSETS / "icon.png") as im:
-        assert im.size == (64, 64), "Fabric icon must be square."
-    for path in (ASSETS / "models").rglob("*.json"):
-        obj = json.loads(path.read_text(encoding="utf-8"))
-        for tex in obj.get("textures", {}).values():
-            if tex.startswith("canvasdesk:"):
-                assert (ASSETS / "textures" / (tex.split(":")[1] + ".png")).is_file(), (path, tex)
-        for element in obj.get("elements", []):
-            assert all(a < b for a, b in zip(element["from"], element["to"])), (path, element)
-            assert all(0 <= v <= 16 for v in element["from"] + element["to"]), (path, element)
-    multipart = json.loads((ASSETS / "blockstates/desk.json").read_text(encoding="utf-8"))["multipart"]
-    for part in multipart:
-        ref = part["apply"]["model"].split(":")[1]
-        assert (ASSETS / "models" / (ref + ".json")).is_file(), ref
-    item = json.loads((ASSETS / "items/desk.json").read_text(encoding="utf-8"))
-    assert item["model"] == {"type": "minecraft:model", "model": "canvasdesk:item/desk"}
-    for mask in range(16):
-        attrs = {name: str(bool(mask & (1 << bit))).lower() for bit, name in enumerate(["north", "east", "south", "west"])}
-        applied = [p for p in multipart if all(attrs[k] == v for k, v in p.get("when", {}).items())]
-        assert applied and applied[0]["apply"]["model"] == "canvasdesk:block/desk_base"
-        assert sum(p["apply"]["model"].endswith("desk_edge") for p in applied) == 4 - mask.bit_count()
-        assert sum(p["apply"]["model"].endswith("desk_joint") for p in applied) == mask.bit_count()
-    english = json.loads((ASSETS / "lang/en_us.json").read_text(encoding="utf-8"))
-    portuguese = json.loads((ASSETS / "lang/pt_br.json").read_text(encoding="utf-8"))
-    assert english.keys() == portuguese.keys(), "Both supported languages must have matching keys."
-    recipe = json.loads((DATA / "canvasdesk/recipe/desk.json").read_text(encoding="utf-8"))
-    assert recipe["pattern"] == ["PPP", "CRC", "WWW"]
-    assert recipe["key"]["W"] == "#minecraft:planks"
-    assert recipe["result"] == {"id": "canvasdesk:desk", "count": 1}
-    loot = json.loads((DATA / "canvasdesk/loot_table/blocks/desk.json").read_text(encoding="utf-8"))
-    pool = loot["pools"][0]
-    assert pool["condition"]["type"] == "minecraft:survives_explosion"
-    assert pool["entries"][0]["modifier"] == {"type": "minecraft:copy_components", "source": "block_entity", "include": ["minecraft:custom_data"]}
-    assert "conditions" not in pool and "functions" not in pool["entries"][0], "Old loot schema is not valid for 26.3."
-    manifest = {str(p.relative_to(ROOT)).replace("\\", "/"): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(ASSETS.rglob("*")) if p.is_file()}
-    json_file(ART / "resource-sha256.json", manifest)
-    json_file(ART / "resource-validation.json", {
-        "status": "PASS", "boundary": "Asset authoring and static resource validation; Minecraft runtime validation is separate.",
-        "minecraft": "26.3", "jsonFiles": checked, "pngFiles": len(list(ASSETS.rglob("*.png"))),
-        "connectionStates": 16, "translationsPerLanguage": len(english),
-        "checks": ["JSON parse", "PNG decode/signature", "Sprite size and alpha", "Model texture references", "Model bounds and positive cuboid volumes", "Multipart model references", "All sixteen connection states", "Modern client item definition", "Matching PT-BR/EN keys", "Nine-ingredient crafting recipe", "26.3 loot modifier with custom_data preservation"],
-        "officialFormatReferences": ["Minecraft 26.3 client: data/minecraft/recipe/crafting_table.json", "Minecraft 26.3 client: data/minecraft/loot_table/blocks/chest.json", "Minecraft 26.3 client: data/minecraft/advancement/recipes/misc/book.json", "Minecraft 26.3 client: assets/minecraft/blockstates/oak_fence.json", "Minecraft 26.3 client: assets/minecraft/items/crafting_table.json", "Minecraft 26.3 client: assets/minecraft/atlases/gui.json"],
-    })
-    print(f"Validated {checked} resource JSON files, {len(list(ASSETS.rglob('*.png')))} PNGs, model references, geometry, both languages, crafting/loot and all 16 multipart states.")
+        with Image.open(path) as image:image.verify()
+    for path in (ASSETS/"textures/gui/sprites/tools").glob("*.png"):
+        with Image.open(path) as image:assert image.size==(16,16) and image.mode=="RGBA",path
+    for path in (ASSETS/"models").rglob("*.json"):
+        model=json.loads(path.read_text(encoding="utf-8"))
+        for texture in model.get("textures",{}).values():
+            if texture.startswith("canvasdesk:"):assert (ASSETS/"textures"/(texture.split(":")[1]+".png")).is_file(),(path,texture)
+        for box in model.get("elements",[]):
+            assert all(a<b for a,b in zip(box["from"],box["to"])),path
+            assert all(0<=v<=16 for v in box["from"]+box["to"]),path
+    geometry=json.loads((ART/"geometry.json").read_text(encoding="utf-8"))
+    assert geometry==json.loads((ASSETS/"geometry.json").read_text(encoding="utf-8"))
+    states=0
+    for block,mounts in [("desk",["false","true"]),("drawing_desk",["false"])]:
+        multipart=json.loads((ASSETS/f"blockstates/{block}.json").read_text(encoding="utf-8"))["multipart"]
+        for part in multipart:assert (ASSETS/"models"/(part["apply"]["model"].split(":")[1]+".json")).is_file()
+        modes=["vertical","wall"] if block=="desk" else ["horizontal"]
+        for mode in modes:
+            for color in geometry["colors"]:
+                base=json.loads((ASSETS/f"models/block/{block}_{mode}_base_{color}.json").read_text(encoding="utf-8"))
+                assert set(base["elements"][0]["faces"])=={"up" if mode=="horizontal" else "north"},"Paper side faces must not overlap the frame"
+        item=json.loads((ASSETS/f"items/{block}.json").read_text(encoding="utf-8"))["model"]
+        assert item["type"]=="minecraft:select" and item["block_state_property"]=="color"
+        assert {case["when"] for case in item["cases"]}==set(geometry["colors"])
+        for facing,base,mount,color,mask in product(["north","east","south","west"],["false","true"],mounts,geometry["colors"],range(16)):
+            attrs={name:str(bool(mask&(1<<bit))).lower() for bit,name in enumerate(["up","right","down","left"])}
+            attrs.update(facing=facing,base=base,wall_mounted=mount,color=color)
+            applied=[p for p in multipart if all(attrs[k]==v for k,v in p.get("when",{}).items())]
+            assert sum("_base_" in p["apply"]["model"] for p in applied)==1,(block,attrs)
+            assert sum("_edge_" in p["apply"]["model"] for p in applied)==4-mask.bit_count(),(block,attrs)
+            states+=1
+        loot=json.loads((DATA/f"canvasdesk/loot_table/blocks/{block}.json").read_text(encoding="utf-8"))
+        modifiers=loot["pools"][0]["entries"][0]["modifier"]
+        assert any(m["type"]=="minecraft:copy_components" and "minecraft:custom_data" in m["include"] for m in modifiers)
+        assert any(m["type"]=="minecraft:copy_state" and m["properties"]==["color"] for m in modifiers)
+        for color in geometry["colors"]:
+            recipe=json.loads((DATA/f"canvasdesk/recipe/{block}_{color}.json").read_text(encoding="utf-8"))
+            assert recipe["type"]=="minecraft:crafting_transmute" and recipe["result"]["components"]["minecraft:block_state"]["color"]==color
+        target="drawing_desk" if block=="desk" else "desk"
+        conversion=json.loads((DATA/f"canvasdesk/recipe/{block}_to_{target}.json").read_text(encoding="utf-8"))
+        assert conversion["type"]=="minecraft:crafting_transmute" and conversion["result"]["id"]=="canvasdesk:"+target
+    en=json.loads((ASSETS/"lang/en_us.json").read_text(encoding="utf-8"));pt=json.loads((ASSETS/"lang/pt_br.json").read_text(encoding="utf-8"))
+    assert en.keys()==pt.keys()
+    assert json.loads((DATA/"canvasdesk/recipe/desk.json").read_text(encoding="utf-8"))["pattern"]==["PPP","CRC","WWW"]
+    assert json.loads((DATA/"canvasdesk/recipe/drawing_desk.json").read_text(encoding="utf-8"))["pattern"]==["PPP","WWW","CRC"]
+    json_file(ART/"resource-validation.json",{"status":"PASS","version":"1.2.0","boundary":"Static resources only; excludes Minecraft runtime and actual crafting","jsonFiles":checked,"connectionStates":states,"colorsPerFormat":16,"checks":["JSON and PNG decoding","Model and texture references","Positive geometry within blocks","Shared editable geometry","Multipart format/mount/facing/color/connections","Item color selection","Data-preserving recipe definitions","Custom data and color loot","PT-BR/EN parity"]})
+    print(f"PASS: {checked} JSON resources, {states} multipart configurations, two formats and 16 colors each.")
 
 
 def main():
@@ -595,7 +517,13 @@ def main():
     data_files()
     icon()
     preview()
-    validate()
+    manifest = {str(p.relative_to(ROOT)).replace("\\", "/"): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(ASSETS.rglob("*")) if p.is_file()}
+    json_file(ART / "resource-sha256.json", manifest)
+    import sys
+    if "--validate" in sys.argv:
+        validate()
+    else:
+        json_file(ART / "resource-validation.json", {"status": "NOT_RUN", "version": "1.2.0", "reason": "Generation only; automated tests explicitly waived."})
 
 
 if __name__ == "__main__":

@@ -33,4 +33,8 @@ public final class CanvasViewport {
         panX = (x1 + x2) / 2 - (right - left) / (2 * zoom);
         panY = (y1 + y2) / 2 - (bottom - top) / (2 * zoom);
     }
+    public void fitBounds(double x1,double y1,double x2,double y2){
+        zoom=Math.clamp(Math.min((right-left-24)/Math.max(64,x2-x1),(bottom-top-24)/Math.max(64,y2-y1)),.005,2);
+        panX=(x1+x2)/2-(right-left)/(2*zoom);panY=(y1+y2)/2-(bottom-top)/(2*zoom);
+    }
 }

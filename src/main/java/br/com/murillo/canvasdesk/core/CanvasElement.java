@@ -10,8 +10,12 @@ import java.util.UUID;
 /** Immutable document primitive. JSON is deliberately confined to this boundary. */
 public record CanvasElement(UUID id, Type type, double x, double y, double w, double h,
                             int color, float thickness, String text, List<Point> points,
-                            UUID from, UUID to, List<Boolean> checks, long revision, UUID group) {
+                            UUID from, UUID to, List<Boolean> checks, long revision, UUID group, double fontSize) {
     public enum Type { STROKE, TEXT, RECTANGLE, ELLIPSE, LINE, ARROW, CONNECTOR, NOTE, CHECKLIST }
+    public CanvasElement(UUID id, Type type, double x, double y, double w, double h, int color, float thickness,
+                         String text, List<Point> points, UUID from, UUID to, List<Boolean> checks, long revision, UUID group) {
+        this(id,type,x,y,w,h,color,thickness,text,points,from,to,checks,revision,group,9);
+    }
     public record Point(double x, double y) {}
     public record Bounds(double minX, double minY, double maxX, double maxY) {
         public boolean intersects(Bounds other) {
@@ -23,6 +27,7 @@ public record CanvasElement(UUID id, Type type, double x, double y, double w, do
         if (id == null || type == null || text == null) throw new IllegalArgumentException("Elemento incompleto.");
         finite(x); finite(y); finite(w); finite(h);
         if (w < 0 || h < 0) throw new IllegalArgumentException("Dimensões negativas.");
+        if (!Double.isFinite(fontSize) || fontSize < 8 || fontSize > 96) throw new IllegalArgumentException("Fonte deve estar entre 8 e 96.");
         if (!Float.isFinite(thickness) || thickness < 0.25f || thickness > 128f)
             throw new IllegalArgumentException("Espessura deve estar entre 0,25 e 128.");
         if (text.length() > 65_536 || points.size() > 65_536 || checks.size() > 16_384)
@@ -49,13 +54,13 @@ public record CanvasElement(UUID id, Type type, double x, double y, double w, do
     }
 
     public CanvasElement withRevision(long next) {
-        return new CanvasElement(id, type, x, y, w, h, color, thickness, text, points, from, to, checks, next, group);
+        return new CanvasElement(id, type, x, y, w, h, color, thickness, text, points, from, to, checks, next, group, fontSize);
     }
 
     public CanvasElement translated(double dx, double dy, UUID defaultGroup) {
         return new CanvasElement(id, type, x + dx, y + dy, w, h, color, thickness, text,
             points.stream().map(p -> new Point(p.x + dx, p.y + dy)).toList(), from, to, checks,
-            revision + 1, group == null ? defaultGroup : group);
+            revision + 1, group == null ? defaultGroup : group, fontSize);
     }
 
     CanvasElement connected(CanvasElement start, CanvasElement end, boolean removeStart, boolean removeEnd) {
@@ -70,7 +75,7 @@ public record CanvasElement(UUID id, Type type, double x, double y, double w, do
         if (end != null) b = edge(end, centerA);
         return new CanvasElement(id, type, Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x),
             Math.abs(b.y - a.y), color, thickness, text, List.of(a, b), removeStart ? null : from,
-            removeEnd ? null : to, checks, revision, group);
+            removeEnd ? null : to, checks, revision, group, fontSize);
     }
 
     private static Point edge(CanvasElement element, Point toward) {
@@ -86,6 +91,7 @@ public record CanvasElement(UUID id, Type type, double x, double y, double w, do
         out.addProperty("x", x); out.addProperty("y", y); out.addProperty("w", w); out.addProperty("h", h);
         out.addProperty("color", color); out.addProperty("thickness", thickness); out.addProperty("text", text);
         out.addProperty("revision", revision);
+        out.addProperty("fontSize", fontSize);
         if (from != null) out.addProperty("from", from.toString());
         if (to != null) out.addProperty("to", to.toString());
         if (group != null) out.addProperty("group", group.toString());
@@ -110,7 +116,7 @@ public record CanvasElement(UUID id, Type type, double x, double y, double w, do
             number(input, "w", 100), number(input, "h", 60), (int) number(input, "color", 0x30302c),
             (float) number(input, "thickness", 3), input.has("text") ? input.get("text").getAsString() : "",
             points, optionalId(input, "from"), optionalId(input, "to"), checks,
-            input.has("revision") ? input.get("revision").getAsLong() : 0, optionalId(input, "group"));
+            input.has("revision") ? input.get("revision").getAsLong() : 0, optionalId(input, "group"), number(input, "fontSize", 9));
     }
 
     private static double number(JsonObject o, String key, double fallback) {
