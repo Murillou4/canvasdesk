@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Style;
 import java.util.UUID;
 
 /** Native text model, rendered in document coordinates; no second persistent document. */
-public final class InlineTextEditor {
+public final class InlineTextEditor implements net.minecraft.client.gui.components.events.GuiEventListener, net.minecraft.client.gui.narration.NarratableEntry {
     public final String id;
     public final CanvasTextModel input;
     public final JsonObject template;
@@ -18,6 +18,17 @@ public final class InlineTextEditor {
     private final Font font;
     private CanvasElementView draft;
     private IMEPreeditOverlay preedit;
+    private boolean focused;
+    @Override public boolean isFocused(){return focused;}
+    @Override public void setFocused(boolean value){
+        if(focused==value)return;focused=value;
+        net.minecraft.client.Minecraft.getInstance().onTextInputFocusChange(this,value);
+    }
+    @Override public boolean capturesInput(){return focused&&active;}
+    @Override public boolean charTyped(CharacterEvent event){return character(event);}
+    @Override public boolean preeditUpdated(PreeditEvent event){return preedit(event);}
+    @Override public net.minecraft.client.gui.narration.NarratableEntry.NarrationPriority narrationPriority(){return focused?net.minecraft.client.gui.narration.NarratableEntry.NarrationPriority.FOCUSED:net.minecraft.client.gui.narration.NarratableEntry.NarrationPriority.NONE;}
+    @Override public void updateNarration(net.minecraft.client.gui.narration.NarrationElementOutput out){out.add(net.minecraft.client.gui.narration.NarratedElementType.TITLE,net.minecraft.network.chat.Component.literal(input.value()));}
     public InlineTextEditor(Font font,JsonObject value){
         this.font=font;template=value.deepCopy();id=value.get("id").getAsString();
         CanvasElementView e=new CanvasElementView(template);
@@ -51,6 +62,7 @@ public final class InlineTextEditor {
         var caretLine=layout.lines().isEmpty()?null:layout.lines().get(cursorLine);
         double cursorX=draft.x+(caretLine==null?0:font.width(input.value().substring(caretLine.start(),Math.clamp(cursor,caretLine.start(),caretLine.end())))*scale);
         double cursorY=draft.y+(caretLine==null?0:caretLine.y());
+        if(focused)net.minecraft.client.Minecraft.getInstance().textInputManager().setTextInputArea((int)viewport.screenX(cursorX),(int)viewport.screenY(cursorY),(int)viewport.screenX(cursorX)+1,(int)viewport.screenY(cursorY+12*scale));
         int first=Math.max(0,(int)Math.floor((viewport.documentY(viewport.top)-draft.y)/(12*scale)));
         int last=Math.min(layout.lines().size(),1+(int)Math.ceil((viewport.documentY(viewport.bottom)-draft.y)/(12*scale)));
         for(int i=first;i<last;i++){

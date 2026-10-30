@@ -19,12 +19,15 @@ public final class CanvasElementView {
     public final long revision;
     public final List<Point> points;
     public final List<Boolean> checks;
+    public final String url,sourceAuthor;
+    public final List<br.com.murillo.canvasdesk.core.MaterialItem> items;
 
     public CanvasElementView(JsonObject object) {
         json = object.deepCopy();
         id = string(object, "id", "");
         type = string(object, "type", "RECTANGLE");
         text = string(object, "text", "");
+        sourceAuthor=string(object,"sourceAuthor","");url=string(object,"url","");items=br.com.murillo.canvasdesk.core.MaterialItem.parse(object.getAsJsonArray("items"));
         from = string(object, "from", "");
         to = string(object, "to", "");
         group = string(object, "group", "");
@@ -66,6 +69,7 @@ public final class CanvasElementView {
             width=w*factor;height=h*factor;copy.addProperty("fontSize",fontSize*factor);
         }
         copy.addProperty("w", width); copy.addProperty("h", height);
+        if(type.equals("MATERIALS")){var temp=new CanvasElementView(copy);copy.addProperty("h",MaterialsLayout.of(net.minecraft.client.Minecraft.getInstance().font,temp).height());}
         JsonArray scaled = new JsonArray();
         for (Point p : points) scaled.add(point(x + (p.x - x) * width / Math.max(1, w), y + (p.y - y) * height / Math.max(1, h)));
         copy.add("points", scaled);

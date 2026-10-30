@@ -165,7 +165,7 @@ def models():
 
 def tools():
     ink, copper, muted = PALETTE["ink"], PALETTE["copper"], PALETTE["muted"]
-    names = ["select", "pen", "text", "note", "checklist", "rectangle", "ellipse", "line", "arrow", "connector", "eraser", "pan", "resize", "undo", "redo", "delete", "fit", "invite", "check", "close", "save", "lock", "merge", "palette"]
+    names = ["select", "pen", "text", "note", "checklist", "rectangle", "ellipse", "line", "arrow", "connector", "eraser", "pan", "resize", "undo", "redo", "delete", "fit", "invite", "check", "close", "save", "lock", "merge", "palette", "embed", "materials"]
     for name in names:
         im = Image.new("RGBA", (16, 16))
         d = ImageDraw.Draw(im)
@@ -177,6 +177,14 @@ def tools():
             d.line((5, 10, 10, 5), fill=copper, width=2)
             d.polygon([(2, 14), (3, 10), (6, 13)], fill="#e2cfa8")
             d.point((2, 14), fill=ink)
+        elif name == "embed":
+            d.rounded_rectangle((1, 3, 14, 12), radius=2, outline=ink, width=2)
+            d.polygon([(6, 5), (6, 10), (10, 8)], fill=copper)
+        elif name == "materials":
+            for x in [2, 9]:
+                d.polygon([(x, 5), (x+3, 3), (x+6, 5), (x+3, 7)], fill=copper)
+                d.line((x, 5, x, 10, x+3, 12, x+6, 10, x+6, 5), fill=ink)
+                d.line((x+3, 7, x+3, 12), fill=ink)
         elif name == "text":
             d.rectangle((3, 3, 13, 4), fill=ink)
             d.rectangle((7, 4, 8, 12), fill=ink)

@@ -1,3 +1,163 @@
+# Canvas Desk 1.5.0 — party de áudio, fonte editável e entrada ordenada
+
+Data: 30/10/2026. Minecraft 26.3, Fabric Loader 0.19.5, Fabric API 0.164.0+26.3, JDK 25, Loom 1.17.21, Gradle 9.6.0 e JCEF Maven 152.0.6 preservados. Os resultados antigos abaixo são históricos, não aprovação automática desta versão.
+
+## Resultados desta entrega
+
+| Verificação | Estado | Evidência e limite |
+| --- | --- | --- |
+| Compilação main/client/browser/gametest | PASS | `artifacts/1.5.0/final-build-unit.log`, JDK 25 |
+| 83 testes unitários, 10 suítes | PASS | `artifacts/1.5.0/unit-tests/summary.json` e XML: zero falhas, erros ou ignorados |
+| Entrada longa no Chromium real | PASS | `artifacts/1.5.0/browser-input/attempt-20261030-115224/summary.json`: 3.003 caracteres, acentos/Unicode, seleção, Enter, Backspace e reset de foco com atualizações concorrentes; sem entrada física do Windows |
+| Smoke oculto/silencioso no jogo | PASS | `artifacts/1.5.0/smoke/attempt-20261030-153108/{summary,runner}.json`; quatro grupos aprovados, limite total 180 s |
+| Dois clientes reais, party e mídia | PASS | `artifacts/1.5.0/multiplayer/attempt-20261030-153229/{summary,runner}.json`; duas janelas ocultas, limite total 180 s |
+| Bloqueio nativo de áudio | PASS | Preferência `profile.default_content_setting_values.sound` configurada/lida no runtime; transições bloquear/permitir/bloquear verificadas. Testes mantêm adicionalmente `--mute-audio` imutável |
+| Netflix/EME/codecs no runtime fixado | FAIL — suporte indisponível | Sondagens reais: `widevine=false`, `mp4=false`. Reprodução Netflix não aprovada; painel mantém endereço e diagnóstico |
+| Distribuição, fontes, licenças e SHA-256 | PASS | Auditoria final em `artifacts/1.5.0/release-summary.json`, copiada à distribuição |
+
+Os testes unitários incluem autoria definida no servidor/recusa de spoof, defaults antigos, transformações, troca de fonte, desfazer e reabertura; uma party por jogador, consentimento/saída/reconexão, escolha do vídeo ativo, ganho por distância e modo contínuo; FIFO, overflow explícito e coalescimento; respostas DevTools antes e depois do identificador, falhas e encerramento. Os testes anteriores de dados, ACL, materiais e geometria também foram repetidos.
+
+O smoke final usou interação vanilla para abrir e controlar: autoria automática, menu no mundo, entrada em proximidade, ganho a 10/20 blocos, modo contínuo a 90 blocos; troca durável de URL após matar o auxiliar, preservando ID/título/posição/tamanho; URL inválida e rascunho preservado após refresh; texto real no DOM sob 1.500 movimentos, acentos/Unicode, seleção, Enter, clipboard em memória e foco após resize; saída imediata e callback de proteção recusando adesão. Capturas `world-party-menu.png` e `browser-typing-native-dom.png` foram inspecionadas.
+
+A rodada de dois clientes aprovou visitante bloqueado até adesão explícita, leitor sem controle, convite sem alteração implícita de ACL, clique real no mundo pausando sem editor e busca chegando ao decodificador do dono com desvio inferior a 500 ms, rejeição de revisão antiga, endereço/rolagem compartilhados, reconexão real sem restaurar adesão de convidado e encerramento da sessão anterior após troca de fonte. Ambos os logs terminam em PASS.
+
+## Segurança do teste e fronteira da evidência
+
+Nenhum mouse, teclado, foco ou volume do Windows foi controlado. Perfis descartáveis configuram master=0, os vídeos locais não têm faixa sonora e todos os auxiliares de validação têm `--mute-audio`, mesmo quando o teste alterna a autorização nativa. Capturas são internas. O teste de clipboard usa memória e não lê nem substitui o clipboard pessoal. Os runners registram PID e criação, preservam a linha de base e encerram somente seus descendentes novos. Cada rodada tem um único limite total de 180 segundos, incluindo inicialização e esperas.
+
+A entrada foi validada por callbacks do Minecraft/TextInputManager e por eventos nativos CDP/DOM no Chromium. Isso não equivale a digitar fisicamente pelo Windows/SDL. O caminho de produção de copiar/recortar usa o frame focado do Chromium, inclusive iframes; esse acesso ao clipboard do sistema não foi exercitado para respeitar o uso pessoal do computador.
+
+A auditoria compara o bytecode main/client/auxiliar empacotado ao compilado executado no desenvolvimento. Não houve lançamento adicional do JAR distribuído. GameTests, mixins e harness de validação ficam fora do mod; o ZIP do projeto inclui seus fontes para reprodução. Bibliotecas Chromium são baixadas com hashes fixados, sem trocar o runtime. Licenças JCEF, Apache e das dependências JOGL/GlueGen são incluídas.
+
+## Falhas corrigidas e tentativas preservadas
+
+Cada tentativa possui diretório próprio; RUNNING/FAIL/ABORTED não vira PASS por reaproveitamento. `attempt-20261030-112327` encontrou uma espera incorreta do harness após teleporte; `112703` encontrou corrupção de Unicode suplementar na ponte JNI, corrigida com JSON ASCII; `113111` e `113653` expuseram timeout na confirmação de comandos. A investigação identificou respostas chegando antes do ID nativo no JCEF fixado: CanvasReplyInbox/CanvasDevTools retêm e correlacionam ambas as ordens sem repetir teclas. O build intermediário `reply-build.log` registra a correção do método abstrato do observer. A tentativa `115235` foi interrompida e ficou sem resultado; não conta como aprovação. A rodada final `153108` substitui essas evidências para o smoke completo.
+
+## Pendências reais
+
+- **NOT_RUN:** audibilidade, fade percebido, volume/mudo reais, convívio com sons do Minecraft e feedback do editor. Aprovação de política nativa silenciosa não comprova saída sonora.
+- **NOT_RUN:** teclado físico Windows/SDL, composição IME em layouts variados, clipboard do sistema/iframes e autenticação com credenciais reais. Nenhuma senha ou cookie foi compartilhado ou usado em teste.
+- **NOT_RUN:** fallback por processo em plataforma onde a preferência nativa seja ausente (no Windows x64 testado ela existe), recuperação com todos os tipos de DRM, login persistente entre atualizações do runtime.
+- **NOT_RUN nesta versão:** YouTube externo (resultado 1.4.0 permanece histórico), todas as ferramentas nas três resoluções, todas as orientações/parede/L/vãos, resource packs, Linux/macOS, benchmark e redes de alta latência.
+- **NOT_RUN:** matriz completa de colaboração de desenho/consentimento de união entre dois donos e servidor dedicado 1.5.0. A rodada de dois clientes abaixo cobre party/mídia, não todos os fluxos colaborativos.
+- **FAIL por capacidade do runtime:** Netflix protegida permanece sem suporte suficiente a EME/Widevine/codec; não foi contornada nem tratada como reprodução aprovada. Nenhum Electron, EVS ou cadastro foi adicionado.
+
+## Reprodução e entrega
+
+Com JDK 25 explícito:
+
+```powershell
+.\gradlew.bat --no-daemon --console=plain test compileGametestJava
+.\tools\validate-browser-input.ps1 -JdkPath 'C:\Program Files\Eclipse Adoptium\jdk-25.0.5.8-hotspot' -TimeoutSeconds 180
+.\tools\validate-party.ps1 -JdkPath 'C:\Program Files\Eclipse Adoptium\jdk-25.0.5.8-hotspot' -NativeInputMode none -TimeoutSeconds 180
+.\tools\validate-media-multiplayer.ps1 -JdkPath 'C:\Program Files\Eclipse Adoptium\jdk-25.0.5.8-hotspot' -TimeoutSeconds 180
+.\gradlew.bat --no-daemon --console=plain release -x test -x check
+```
+
+Entrega em `dist/1.5.0`: JAR, fontes, projeto fonte ZIP, documentação e `SHA256SUMS.txt`. Clientes e servidor devem usar 1.5.0. Instalação pessoal, documentos e perfis anteriores não foram modificados.
+
+---
+
+# Canvas Desk 1.4.0 — digitação, contorno, navegador e materiais
+
+Data: 29/10/2026. Minecraft 26.3, Fabric Loader 0.19.5, Fabric API 0.164.0+26.3, Java 25, Loom 1.17.21 e Gradle 9.6.0 preservados. As seções anteriores permanecem abaixo como histórico; não aprovam esta versão.
+
+## Resultados executados
+
+| Verificação | Estado | Evidência e limite |
+| --- | --- | --- |
+| Compilação main/client/browser e módulo de desenvolvimento | PASS | `artifacts/1.4.0/final-build-unit.log`, JDK 25; nenhum cliente iniciado por este comando |
+| 66 testes unitários | PASS | `artifacts/1.4.0/unit-tests/summary.json` e XML: dados legados, transformações, união, histórico, revisão, ACL, deduplicação, 29 materiais, quantidades, aliases, relógio, geometria e layout |
+| Smoke isolado com Chromium real | PASS | `artifacts/1.4.0/smoke/attempt-20261029-223909/{summary,runner}.json`; 68,30 s, limite total 180 s; janela oculta e sem foco |
+| Dois clientes reais e servidor integrado | PASS | `artifacts/1.4.0/multiplayer/attempt-20261029-223658/{summary,runner}.json`; 130,71 s, limite total 180 s; duas janelas ocultas |
+| YouTube em auxiliar real | PASS | `artifacts/1.4.0/providers/youtube-20261029-224017/summary.json`; 4,99 s, limite 25 s, player ready e posição avançando, sem erros; áudio silenciado |
+| Entrada física Windows/SDL | PARCIAL | Probes aprovados nos diretórios `attempt-20261029-212302` e `attempt-20261029-213245`: texto acentuado, Enter/Ctrl+Enter e notas/checklists. São tentativas interrompidas, não aprovação de toda a rodada. O último smoke usa callbacks de texto, não teclas do Windows |
+| Distribuição, conteúdo e hashes | PASS | `artifacts/1.4.0/release-summary.json`; conferência independente de execução em desenvolvimento |
+
+O smoke final aprovou seis grupos: entrada pelo callback nativo e confirmação durável; resize/foco e cartões com acentos/quebras; importação atômica dos 29 materiais e atlas nativo no editor/mundo; decodificação de vídeo, controles do painel e da própria página, play/pausa/busca e correção de desvio maior que 500 ms; navegação/entrada HTML real, formulário local, rolagem, cancelamento e queda do auxiliar; capturas 854×480, 1280×720 e 1920×1080 com GUI 2/3, contornos em L/com vão e materiais na prancheta. `editor-selftest.log` termina em PASS.
+
+A rodada de dois clientes comprovou entrada tardia no relógio em reprodução, rejeição de controle por leitor, convite e comandos do convidado chegando ao decodificador do dono, recusa de revisão antiga, endereço/rolagem compartilhados, desconexão/reconexão real e encerramento explícito da sessão antiga após trocar a fonte. Os logs `mediaOwner.log` e `mediaPeer.log` terminam em PASS. Isso cobre sincronização de mídia; não representa execução de toda a colaboração de desenho e de uniões com dois donos.
+
+Capturas inspecionadas incluem `editor-854.png`, `editor-1920-materials.png`, `embedded-video-real.png`, `embedded-site-local-input.png` e `world-ring-contour.png` no diretório final do smoke. Elas mostram texto com acentos, quantidades completas e ícones nativos, conteúdo real do navegador e perímetro sem emendas internas. Outras capturas e os logs completos permanecem nos diretórios de cada tentativa.
+
+## Áudio e uso do computador
+
+Uma versão inicial do vídeo sintético de teste continha um tom contínuo que foi reproduzido e incomodou o usuário. Essa falha do teste não é aprovação de áudio. A faixa foi removida dos arquivos locais e o gerador agora usa `-an`. Os runners configuram o volume somente em seus perfis descartáveis, e o auxiliar de validação recebe `--mute-audio`. Não há alteração do volume do Windows ou da instalação pessoal. Audibilidade, volume e convivência com os sons normais do jogo permanecem **NOT_RUN**.
+
+Depois do pedido para liberar o computador, as rodadas usam janelas SDL ocultas/não focáveis e screenshots internos; não usam mouse/teclado do sistema. Após o relato do apito, nenhum jogo ou navegador foi iniciado novamente: somente leitura de arquivos, compilação, testes unitários e empacotamento. Os processos de teste anteriores encerraram; os runners registram preservação dos processos de base. A revisão final de processos consta no resumo de entrega.
+
+## Limites e pendências reais
+
+- **NOT_RUN após os últimos ajustes de interface:** rodapé compacto do diálogo de materiais, disponibilidade dos controles conforme tipo/prontidão do navegador e descarte de ícones fora da viewport foram compilados, mas não houve novo smoke após esses ajustes. A nova captura/assertion em 640×480 está preparada, não executada. As três resoluções exigidas acima foram executadas antes desse acabamento.
+- **NOT_RUN:** composição IME completa em diferentes layouts, entrada física Windows em todos os campos de quantidade/busca/JSON e todas as combinações de seleção/clipboard/foco. Callbacks não substituem essa aceitação física. Probes anteriores de digitação real não foram repetidos após o pedido de não controlar o computador.
+- **NOT_RUN:** todas as quatro orientações, montagem de parede e emendas exatas para os novos conteúdos; suíte completa das ferramentas, conflitos de desenho e aprovação de união entre dois donos em dois clientes reais.
+- **NOT_RUN:** servidor dedicado 1.4.0, reinício completo do mundo com todos os novos cenários e queda forçada durante gravação; os testes unitários cobrem reabertura do armazenamento.
+- **NOT_RUN:** Linux/macOS, resource packs personalizados e recarga enquanto dois navegadores estão ativos, carga/FPS em documentos grandes, rede remota de alta latência, perda prolongada de pacotes.
+- **NOT_RUN:** credenciais reais, cookies entre reinícios, provedores com DRM/codecs proprietários e todos os bloqueios regionais/de incorporação do YouTube. O PASS do vídeo público não garante outros provedores.
+- **NOT_RUN:** áudio audível de vídeos/sites, mixagem com Minecraft e feedback opcional; a validação final foi silenciosa.
+
+## Reprodutibilidade e tentativas
+
+Cada tentativa tem diretório próprio. Falhas e diretórios RUNNING antigos não são reutilizados como aprovação. Ajustes anteriores do harness incluíram pacote exclusivo do mixin de validação, bloqueio SDL do GameTest, preparação do atlas fora de render passes, assinatura de blit, HTTP Range do fixture, espera de carregamento HTML, recibos de comandos e configuração Loom concorrente. O runner de dois clientes inicia o segundo somente após o primeiro publicar a conexão, mantendo um único deadline total.
+
+Comandos executados nesta versão (JDK 25 explícito):
+
+```powershell
+.\gradlew.bat --no-daemon --console=plain test compileGametestJava
+.\tools\validate-features.ps1 -JdkPath 'C:\Program Files\Eclipse Adoptium\jdk-25.0.5.8-hotspot' -NativeInputMode none -TimeoutSeconds 180
+.\tools\validate-media-multiplayer.ps1 -JdkPath 'C:\Program Files\Eclipse Adoptium\jdk-25.0.5.8-hotspot' -TimeoutSeconds 180
+.\tools\validate-browser-provider.ps1 -JdkPath 'C:\Program Files\Eclipse Adoptium\jdk-25.0.5.8-hotspot' -TimeoutSeconds 25
+.\gradlew.bat --no-daemon --console=plain release -x test -x check
+```
+
+A distribuição contém JAR, fontes, projeto fonte, documentação e SHA-256 em `dist/1.4.0`. O auxiliar fica aninhado como recurso; bibliotecas nativas são baixadas no primeiro uso, por plataforma e versão, verificadas por SHA-256. Licenças e notices estão preservados. Código/mixins de GameTest não entram no JAR. A instalação pessoal permanece intacta.
+
+---
+# Canvas Desk 1.3.0 — editor ampliado e checklists no mundo
+
+Data: 29/10/2026. Minecraft 26.3, Fabric Loader 0.19.5, Fabric API 0.164.0+26.3, Java 25, Loom 1.17.21 e Gradle 9.6.0 preservados.
+
+Painel 94% × 92%, cabeçalho e rodapé compactos e barras laterais reservadas fora da viewport. O enquadramento usa os limites físicos completos e margem de 8 unidades GUI, com escala uniforme. F e roda compartilham limites de zoom e não saltam em superfícies grandes. Nenhuma coordenada ou proporção do documento foi alterada.
+
+Checklists podem ser marcados somente pela caixinha, no mundo, com a mão principal vazia. Uma pressão produz uma operação durável; manter pressionado não repete a alteração. Clicar no texto e agachar conservam abertura do editor. O servidor valida identidade, projeção, alcance, obstáculos, ACL, revisão e callbacks vanilla/Fabric. A operação altera apenas checks e participa do histórico existente.
+
+## Verificações desta versão
+
+| Verificação | Estado | Evidência / limite |
+| --- | --- | --- |
+| Compilação main/client com JDK 25 | PASS | Gradle compileJava compileClientJava |
+| 30 testes de armazenamento e histórico | PASS | build/test-results/test/TEST-br.com.murillo.canvasdesk.core.CanvasStoreTest.xml |
+| 5 testes de superfície + 9 de raio de colocação | PASS | build/test-results/test/TEST-br.com.murillo.canvasdesk.block.*.xml |
+| 5 testes de layout, fit e zoom | PASS | build/test-results/test/TEST-br.com.murillo.canvasdesk.client.editor.CanvasViewportTest.xml |
+| Smoke isolado do editor e interação no mundo | PASS | artifacts/1.3.0/smoke/summary.json e runner.json; 68,81 segundos, limite de 180 |
+| Distribuição, fontes e SHA-256 | PASS | artifacts/1.3.0/summary.json; 88 classes idênticas às compiladas/validadas, Java 25 e nenhum GameTest no JAR |
+| Colaboração com dois clientes reais | NOT_RUN | Core não substitui validação real de rede e duas interfaces |
+| Áudio normal, feedback opcional e resource packs de fontes personalizados | NOT_RUN | Funcionalidade preservada; não fazem parte do smoke focado |
+| Carga pesada/FPS, queda forçada e reinício completo com chunks reais | NOT_RUN | Sem repetição das validações antigas nesta rodada |
+
+O smoke final aprovou 11 grupos de cenários, com a última linha não vazia exatamente PASS. As cinco tentativas anteriores encerraram dentro do limite e expuseram ajustes necessários no novo driver de testes: botão SDL, chamadas no thread correto, keycode de Enter, posição do jogador acima do piso e alinhamento real da mira ao clicar no texto. Evidências ficam em artifacts/1.3.0/attempt-01 até attempt-05; seus resultados não aprovam cenários posteriores. Nenhuma tentativa ficou esperando indefinidamente.
+
+Cenários aprovados: abertura pelo clique vanilla; painel/rails sem sobreposição em 854×480, 1280×720 e 1920×1080, GUI 2/3; overflow; desenho, seleção, movimento, histórico e texto acentuado com Enter; menus de ajuda/propriedades; topologia L/anel com vão, câmera manual preservada e F; marcar/desmarcar listas verticais e horizontais, linhas quebradas, botão mantido, texto/agachar abrindo editor e histórico compartilhado; bloqueio por nota sobreposta; recusa de revisão, projeção e identidade antigas, obstáculo e alcance; callbacks de proteção cancelando ou substituindo a âncora; leitor e convidado após atualização de ACL sem alteração de pixels.
+
+As capturas finais foram inspecionadas visualmente: editor-1280x720-gui2-pair.png, editor-854x480-gui2-overflow.png, editor-1920x1080-gui2.png, editor-1280x720-gui3.png, editor-L.png, editor-ring-gap.png, editor-help.png, editor-properties.png e world-*-checkbox.png. A superfície ocupa a dimensão limitante da viewport, mantendo a proporção física e os vãos.
+
+Permanecem NOT_RUN: clique de checklist exatamente sobre emenda, todas as quatro orientações e montagem de parede, GUI 1/4/ultrawide/4K e suíte completa de todas as ferramentas. Esses limites não são aprovados pelas capturas e testes focados.
+
+Comandos desta rodada:
+
+```powershell
+.\gradlew.bat --no-daemon --console=plain test --tests '*CanvasStoreTest' --tests '*SurfaceLayoutTest' --tests '*PlacementRayTest' --tests '*CanvasViewportTest' compileGametestJava
+.\tools\validate-editor.ps1 -JdkPath 'C:\Program Files\Eclipse Adoptium\jdk-25.0.5.8-hotspot' -TimeoutSeconds 180
+.\gradlew.bat --no-daemon --console=plain release -x test -x check
+```
+
+O smoke usa perfil .codex-temp/editor-client-130 e mundo descartável. Onboarding de acessibilidade é preparado antes da partida. Todas as esperas de tela/estado são limitadas a 200 ticks; o watchdog externo encerra apenas descendentes novos registrados por PID e data de criação, preservando processos que já existiam.
+
+As regras de colaboração continuam inalteradas: somente donos/convidados editam; uniões entre donos exigem aprovação de todos. Não há migração destrutiva, nova receita ou mudança de versão do Minecraft/Fabric/Java. A instalação pessoal não é modificada. O cliente de teste e o servidor integrado encerraram normalmente; stoppedNewDescendants está vazio e a inspeção final não encontrou processo Java/Minecraft restante.
+
+JAR SHA-256: `ceddc101a39d2cede8a8f66b5536ac4e83b4ac7d601df6d22cd3a13d296c92d9`. JAR, fontes, projeto fonte, documentação e SHA256SUMS.txt ficam em dist/1.3.0. Os 272 arquivos de assets/dados da 1.2.1, incluindo as 36 receitas, são idênticos byte a byte. O smoke usa as classes de desenvolvimento; todas as 88 classes do JAR foram comparadas byte a byte com esse build, separando execução real de conferência do empacotamento.
+
+---
 # Canvas Desk 1.2.1 — correção de interação
 
 Data: 29/10/2026. Minecraft 26.3, Fabric Loader 0.19.5, Fabric API 0.164.0+26.3 e Java 25 preservados.

@@ -37,6 +37,21 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+sourceSets.create('browser')
+dependencies { browserImplementation 'me.friwi:jcefmaven:152.0.6' }
+tasks.register('browserJar',Jar) {
+    dependsOn tasks.named('browserClasses')
+    archiveFileName='canvasdesk-browser.jar'
+    destinationDirectory=layout.buildDirectory.dir('browser')
+    duplicatesStrategy=DuplicatesStrategy.EXCLUDE
+    manifest { attributes 'Main-Class':'br.com.murillo.canvasdesk.browser.BrowserWorker' }
+    from(sourceSets.browser.output)
+    from({ configurations.browserRuntimeClasspath.collect { it.isDirectory()?it:zipTree(it) } })
+    from('licenses/browser') { into 'META-INF/canvasdesk-licenses' }
+    exclude 'META-INF/*.SF','META-INF/*.RSA','META-INF/*.DSA','module-info.class'
+}
+processResources { dependsOn tasks.named('browserJar');from(tasks.named('browserJar')) { into 'canvasdesk-browser';rename { 'worker.jar' } } }
+
 
 fabricApi {
     configureTests {
@@ -46,25 +61,42 @@ fabricApi {
         enableClientGameTests = true
         eula = true
         clearRunDirectory = false
-        username = providers.gradleProperty('canvasdesk_test_role').getOrElse('single') == 'peer' ? 'CanvasDeskPeer' : 'CanvasDeskTest'
+        username = providers.gradleProperty('canvasdesk_test_role').getOrElse('single') in ['peer','mediaPeer'] ? 'CanvasDeskPeer' : 'CanvasDeskTest'
     }
 }
 sourceSets.gametest.compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
 sourceSets.gametest.runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
+sourceSets.test.compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
+sourceSets.test.compileClasspath += sourceSets.browser.output + sourceSets.browser.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.browser.output + sourceSets.browser.runtimeClasspath
 loom.runs.clientGameTest {
+    vmArg '-Dcanvasdesk.browserSilent=true'
+    vmArg '-Dcanvasdesk.browserProbe=true'
     vmArg '-Xmx2G'
     vmArg '-Dcanvasdesk.selftest=true'
+    vmArg '-Dcanvasdesk.nativeInputMode=' + providers.gradleProperty('canvasdesk_native_input_mode').getOrElse('all')
+    vmArg '-Dcanvasdesk.probeOutput=' + providers.gradleProperty('canvasdesk_probe_output').getOrElse(layout.projectDirectory.dir('artifacts/1.4.0/smoke').asFile.absolutePath)
     vmArg '-Dcanvasdesk.reportDir=' + layout.projectDirectory.dir('artifacts/runtime').asFile.absolutePath
     vmArg '-Dcanvasdesk.testRole=' + providers.gradleProperty('canvasdesk_test_role').getOrElse('single')
     vmArg '-Dcanvasdesk.projectRoot=' + layout.projectDirectory.asFile.absolutePath
+    vmArg '-Dcanvasdesk.browserCache=' + layout.projectDirectory.dir('.codex-temp/browser-native-152').asFile.absolutePath
     vmArg '-Dcanvasdesk.stress=' + providers.gradleProperty('canvasdesk_stress').getOrElse('false')
-    if (providers.gradleProperty('canvasdesk_test_role').getOrElse('single') == 'interaction') {
+    if (providers.gradleProperty('canvasdesk_test_role').getOrElse('single') == 'party') {
+        runDir '.codex-temp/party-client-150'
+    } else if (providers.gradleProperty('canvasdesk_test_role').getOrElse('single') == 'worldMedia') {
+        runDir '.codex-temp/world-media-client-141'
+    } else if (providers.gradleProperty('canvasdesk_test_role').getOrElse('single') == 'features') {
+        runDir '.codex-temp/features-client-140'
+    } else if (providers.gradleProperty('canvasdesk_test_role').getOrElse('single') == 'editor') {
+        runDir '.codex-temp/editor-client-130'
+    } else if (providers.gradleProperty('canvasdesk_test_role').getOrElse('single') == 'interaction') {
         runDir '.codex-temp/interaction-client-121'
     } else if (providers.gradleProperty('canvasdesk_test_role').getOrElse('single') != 'single') {
         runDir '.codex-temp/multiplayer-' + providers.gradleProperty('canvasdesk_test_role').get()
     }
     def testRole=providers.gradleProperty('canvasdesk_test_role').getOrElse('single')
-    programArgs '--width', testRole in ['primary','peer'] ? '854' : '1280', '--height', testRole in ['primary','peer'] ? '480' : '720'
+    programArgs '--width', testRole in ['primary','peer','mediaOwner','mediaPeer'] ? '854' : '1280', '--height', testRole in ['primary','peer','mediaOwner','mediaPeer'] ? '480' : '720'
 }
 loom.runs.register('performanceClient') {
     client()
@@ -94,6 +126,11 @@ java {
     toolchain.languageVersion = JavaLanguageVersion.of(25)
     withSourcesJar()
 }
+tasks.named('sourcesJar') {
+    from(sourceSets.browser.allSource) { into 'browser' }
+    from('LICENSE','THIRD_PARTY_NOTICES.md')
+    from('licenses') { into 'licenses' }
+}
 tasks.withType(JavaCompile).configureEach {
     options.release = 25
     options.encoding = 'UTF-8'
@@ -108,14 +145,14 @@ processResources {
     filesMatching('fabric.mod.json') { expand 'version': version }
 }
 test { useJUnitPlatform(); timeout = java.time.Duration.ofMinutes(2) }
-jar { from('LICENSE') }
+jar { from('LICENSE','THIRD_PARTY_NOTICES.md');from('licenses') { into 'licenses' } }
 tasks.named('runServer') { standardInput = System.in }
 tasks.register('sourceDistribution', Zip) {
     archiveFileName = "CanvasDesk-${project.version}-source.zip"
     destinationDirectory = layout.buildDirectory.dir('distributions')
     from(projectDir) {
         include 'gradlew', 'gradlew.bat', 'gradle/**', 'gradle.properties', 'settings.gradle', 'build.gradle'
-        include 'src/**', 'tools/**', 'art/**', 'README.md', 'VALIDATION_STATUS.md', 'CONTRACT.md', 'LICENSE', 'AGENTS.md', '.gitignore'
+        include 'src/**', 'tools/**', 'art/**', 'README.md', 'VALIDATION_STATUS.md', 'CONTRACT.md', 'LICENSE', 'AGENTS.md', '.gitignore', 'THIRD_PARTY_NOTICES.md', 'licenses/**'
         exclude '**/__pycache__/**', '**/*.pyc'
     }
 }
@@ -125,7 +162,7 @@ tasks.register('release', Copy) {
     from(tasks.jar.archiveFile)
     from(tasks.sourcesJar.archiveFile)
     from(tasks.sourceDistribution.archiveFile)
-    from('README.md','VALIDATION_STATUS.md')
+    from('README.md','VALIDATION_STATUS.md','CONTRACT.md','THIRD_PARTY_NOTICES.md')
     doLast {
         def entries = destinationDir.listFiles().findAll { it.name.endsWith('.jar') || it.name.endsWith('.zip') }.sort { it.name }
         def digest = java.security.MessageDigest.getInstance('SHA-256')

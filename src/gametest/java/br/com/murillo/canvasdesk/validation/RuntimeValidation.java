@@ -27,6 +27,11 @@ public final class RuntimeValidation implements FabricClientGameTest {
 
     @Override public void runTest(ClientGameTestContext context) {
         String role=System.getProperty("canvasdesk.testRole","single");
+        if(role.equals("party")){new PartyValidation().run(context);return;}
+        if(role.equals("worldMedia")){new WorldMediaValidation().run(context);return;}
+        if(role.equals("mediaOwner")||role.equals("mediaPeer")){new MediaMultiplayerValidation().run(context,role);return;}
+        if(role.equals("features")){new FeatureValidation().run(context);return;}
+        if(role.equals("editor")){new EditorValidation().run(context);return;}
         if(role.equals("interaction")){new InteractionValidation().run(context);return;}
         if(role.equals("visual")){new VisualValidation().run(context);return;}
         if(!role.equals("single")){new MultiplayerValidation().run(context,role);return;}

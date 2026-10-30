@@ -93,6 +93,50 @@ class CanvasStoreTest {
         for (JsonObject change : changes) a.add(change); r.add("changes", a); return r;
     }
     private static JsonObject action(String name) { JsonObject r = new JsonObject(); r.addProperty("action", name); return r; }
+    private static JsonObject check(UUID id,long revision,int row,boolean checked){
+        JsonObject r=action("setChecklistItem");r.addProperty("operationId",UUID.randomUUID().toString());
+        r.addProperty("elementId",id.toString());r.addProperty("expectedRevision",revision);r.addProperty("row",row);r.addProperty("checked",checked);return r;
+    }
+    @Test void worldChecklistPreservesContentAndHasDurableDeduplicatedHistory() throws Exception {
+        UUID workspace,id=UUID.randomUUID();JsonObject request;
+        try(CanvasStore store=new CanvasStore(directory)){
+            workspace=store.create(owner);JsonObject e=element(id,23,37);e.addProperty("type","CHECKLIST");e.addProperty("text","Acentuação\nSegunda linha\nTerceira");
+            success(store.action(workspace,owner,edit(UUID.randomUUID(),change(id,-1,e))));
+            JsonObject before=onlyElement(store,workspace);request=check(id,0,2,true);success(store.action(workspace,owner,request));
+            JsonObject after=onlyElement(store,workspace);assertEquals(1,after.get("revision").getAsLong());
+            assertEquals("[false,false,true]",after.get("checks").toString());after.add("checks",before.get("checks"));after.add("revision",before.get("revision"));assertEquals(before,after);
+            success(store.action(workspace,owner,request));assertEquals(1,onlyElement(store,workspace).get("revision").getAsLong());
+        }
+        try(CanvasStore store=new CanvasStore(directory)){
+            assertTrue(store.action(workspace,owner,request).get("deduplicated").getAsBoolean());
+            success(store.action(workspace,owner,action("undo")));assertEquals("[]",onlyElement(store,workspace).get("checks").toString());
+            success(store.action(workspace,owner,action("redo")));assertTrue(onlyElement(store,workspace).getAsJsonArray("checks").get(2).getAsBoolean());
+        }
+    }
+    @Test void checklistNoOpHasReceiptButNoRevisionOrUndoEntry() throws Exception {
+        UUID workspace,id=UUID.randomUUID();JsonObject request;
+        try(CanvasStore store=new CanvasStore(directory)){
+            workspace=store.create(owner);JsonObject e=element(id,0,0);e.addProperty("type","CHECKLIST");e.addProperty("text","Uma tarefa");
+            success(store.action(workspace,owner,edit(UUID.randomUUID(),change(id,-1,e))));request=check(id,0,0,false);
+            success(store.action(workspace,owner,request));assertEquals(1,view(store,workspace).get("revision").getAsLong());
+        }
+        try(CanvasStore store=new CanvasStore(directory)){
+            assertTrue(store.action(workspace,owner,request).get("deduplicated").getAsBoolean());success(store.action(workspace,owner,action("undo")));
+            assertTrue(view(store,workspace).getAsJsonArray("elements").isEmpty());
+        }
+    }
+    @Test void checklistRequiresEditorValidRowTypeAndCurrentRevision() throws Exception {
+        try(CanvasStore store=new CanvasStore(directory)){
+            UUID workspace=store.create(owner),id=UUID.randomUUID();JsonObject e=element(id,0,0);e.addProperty("type","CHECKLIST");e.addProperty("text","A\nB");
+            success(store.action(workspace,owner,edit(UUID.randomUUID(),change(id,-1,e))));
+            failure(store.action(workspace,other,check(id,0,0,true)));failure(store.action(workspace,owner,check(id,0,-1,true)));
+            failure(store.action(workspace,owner,check(id,0,2,true)));failure(store.action(workspace,owner,check(id,7,0,true)));
+            success(store.action(workspace,owner,invite(other)));success(store.action(workspace,other,check(id,0,0,true)));
+            failure(store.action(workspace,owner,check(id,0,1,true)));assertEquals("[true]",onlyElement(store,workspace).get("checks").toString());
+            UUID rectangle=UUID.randomUUID();success(store.action(workspace,owner,edit(UUID.randomUUID(),change(rectangle,-1,element(rectangle,0,0)))));
+            failure(store.action(workspace,owner,check(rectangle,0,0,true)));
+        }
+    }
     private static JsonObject invite(UUID id) { JsonObject r = action("invite"); r.addProperty("player", id.toString()); return r; }
     private static void success(JsonObject response) { assertTrue(response.get("ok").getAsBoolean(), response.toString()); }
     private static void failure(JsonObject response) { assertFalse(response.get("ok").getAsBoolean(), response.toString()); }
@@ -352,7 +396,7 @@ class CanvasStoreTest {
         for (CanvasElement.Type type : CanvasElement.Type.values()) {
             CanvasElement element = new CanvasElement(UUID.randomUUID(), type, -81, 17, 100, 200, 0xFFFFFF, 4.5f,
                 "Ação e organização\nSegunda linha: São Paulo", List.of(new CanvasElement.Point(-81, 17), new CanvasElement.Point(19, 217)),
-                UUID.randomUUID(), UUID.randomUUID(), List.of(true, false, true), 73, UUID.randomUUID());
+                UUID.randomUUID(), UUID.randomUUID(), List.of(true, false, true), 73, UUID.randomUUID(),9,type==CanvasElement.Type.EMBED?"https://example.org":"",type==CanvasElement.Type.MATERIALS?List.of(new MaterialItem("stone",64)):List.of());
             assertEquals(element, CanvasElement.fromJson(element.toJson()));
         }
     }

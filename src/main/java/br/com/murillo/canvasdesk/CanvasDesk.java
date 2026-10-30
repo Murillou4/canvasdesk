@@ -79,6 +79,6 @@ public final class CanvasDesk implements ModInitializer {
         ServerChunkEvents.CHUNK_LOAD.register((level, chunk, generated) -> DeskServer.get(level.getServer()).loadChunk(level, chunk));
         ServerChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> DeskServer.get(level.getServer()).unloadChunk(level, chunk));
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> DeskServer.registerCommands(dispatcher));
-        LOGGER.info("Canvas Desk 1.2.1 initialized");
+        LOGGER.info("Canvas Desk 1.5.0 initialized");
     }
 }

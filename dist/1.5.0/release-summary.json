@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "release": "1.5.0",
+  "build": "gradlew.bat --no-daemon --console=plain release -x test -x check",
+  "runtimeBoundary": "Hidden silent development clients executed; packaged main/client/worker bytecode compared to their final compiled output. The release JAR itself was not launched.",
+  "mainClientClasses": 127,
+  "workerOwnClasses": 14,
+  "javaClassMajor": 69,
+  "noValidationInMod": true,
+  "helperIsNestedResource": true,
+  "nativeChromiumBinariesBundled": false,
+  "transitiveRendererNativeLibraries": 36,
+  "licensesPresent": true,
+  "previousAssetsPreserved": 274,
+  "previousRecipesPreserved": 36,
+  "newResources": [],
+  "unitTests": "artifacts/1.5.0/unit-tests/summary.json",
+  "isolatedSmoke": "artifacts/1.5.0/smoke/attempt-20261030-153108/summary.json",
+  "twoClients": "artifacts/1.5.0/multiplayer/attempt-20261030-153229/summary.json",
+  "youtube": "NOT_RUN in 1.5.0; previous result remains historical",
+  "silentFixtures": "No audio tracks; immutable --mute-audio in all test helpers; no desktop input",
+  "files": [
+    {
+      "file": "CanvasDesk-1.5.0-source.zip",
+      "sha256": "3770f71df962ae1337a99a81312bbafeedf315155569fea3c7d562979c36e462",
+      "bytes": 811700
+    },
+    {
+      "file": "canvasdesk-1.5.0-sources.jar",
+      "sha256": "b02e25ef986182d1e7b3bd71386c956121d75185c8f208729f2ed0cd803a98ff",
+      "bytes": 424593
+    },
+    {
+      "file": "canvasdesk-1.5.0.jar",
+      "sha256": "e2e8b4792f98e73c92a5939936f37aedea914c81f1ae825e5cf992c463818c08",
+      "bytes": 8883018
+    }
+  ]
+}

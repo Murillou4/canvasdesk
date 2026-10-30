@@ -111,6 +111,7 @@ public final class CanvasStore implements AutoCloseable {
             }
             return switch (action) {
                 case "edit" -> edit(doc, actor, request, operationId);
+                case "setChecklistItem" -> setChecklistItem(doc,actor,request,operationId);
                 case "undo", "redo" -> history(doc, actor, action, operationId);
                 case "invite", "revoke" -> permission(doc, actor, request, action, operationId);
                 case "rename" -> rename(doc, actor, request, operationId);
@@ -138,6 +139,11 @@ public final class CanvasStore implements AutoCloseable {
             CanvasElement element = after.isJsonNull() ? null : CanvasElement.fromJson(after.getAsJsonObject());
             if (element != null && !element.id().equals(id)) throw new IllegalArgumentException("Identidade do elemento inconsistente.");
             if (element == null && current == null) throw new IllegalArgumentException("Elemento já removido.");
+            if(element!=null&&element.type()==CanvasElement.Type.EMBED){
+                CanvasElement previous=current==null?null:objects.get(current);
+                UUID author=previous!=null&&previous.type()==CanvasElement.Type.EMBED&&previous.url().equals(element.url())?previous.sourceAuthor():actor;
+                element=element.withSourceAuthor(author);
+            }
             desired.put(id, element);
         }
         updateConnectors(doc, desired);
@@ -152,6 +158,31 @@ public final class CanvasStore implements AutoCloseable {
         }
         commitEdit(doc, actor, "normal", history, operationId, "Salvo.",typingGroup,typingElement);
         return result(true, "Salvo.", doc.id);
+    }
+
+    /** Narrow world interaction: never accept replacement text, geometry or links from this request. */
+    private JsonObject setChecklistItem(DocumentState doc,UUID actor,JsonObject request,UUID operationId) throws IOException {
+        requireEditor(doc,actor);
+        if(operationId==null)throw new IllegalArgumentException("Identificador da operação ausente.");
+        UUID id=UUID.fromString(request.get("elementId").getAsString());
+        ElementIndex.Entry entry=doc.index.entries.get(id);
+        if(entry==null||entry.revision()!=request.get("expectedRevision").getAsLong())
+            throw new IllegalArgumentException("A lista mudou; confira o quadro e tente novamente.");
+        CanvasElement current=objects.get(entry);int row=request.get("row").getAsInt();
+        if(current.type()!=CanvasElement.Type.CHECKLIST||row<0||row>=current.text().split("\n",-1).length||row>=16_384)
+            throw new IllegalArgumentException("Tarefa inválida.");
+        boolean checked=request.get("checked").getAsBoolean();
+        if((row<current.checks().size()&&current.checks().get(row))==checked){
+            JsonObject event=event("receipt");event.addProperty("workspace",doc.id.toString());
+            receipt(event,operationId,actor,"Lista já atualizada.");commit(event);
+            return result(true,"Lista já atualizada.",doc.id);
+        }
+        List<Boolean> checks=new ArrayList<>(current.checks());while(checks.size()<=row)checks.add(false);checks.set(row,checked);
+        CanvasElement after=new CanvasElement(current.id(),current.type(),current.x(),current.y(),current.w(),current.h(),
+                current.color(),current.thickness(),current.text(),current.points(),current.from(),current.to(),checks,
+                current.revision(),current.group(),current.fontSize());
+        commitEdit(doc,actor,"normal",prepare(doc,Map.of(id,after)),operationId,"Lista salva.");
+        return result(true,"Lista salva.",doc.id);
     }
 
     private void updateConnectors(DocumentState doc, Map<UUID, CanvasElement> desired) throws IOException {
@@ -298,7 +329,8 @@ public final class CanvasStore implements AutoCloseable {
         combined.revision = Math.max(target.revision, source.revision) + 1;
         JsonObject event = event("merge"); event.add("document", combined.toJson());
         event.addProperty("source", source.id.toString()); event.addProperty("dx", dx); event.addProperty("dy", dy); commit(event);
-        return result(true, "Documentos unidos e salvos. Grupos de origem preservados; histórico reiniciado.", target.id);
+        JsonObject result=result(true, "Documentos unidos e salvos. Grupos de origem preservados; histórico reiniciado.", target.id);
+        result.addProperty("merged",true);return result;
     }
 
     public synchronized void invalidateMerges(UUID workspace) {
@@ -345,6 +377,7 @@ public final class CanvasStore implements AutoCloseable {
                 removeMerges(doc.id); doc.revision++;
             }
             case "rename" -> { doc = document(id(event, "workspace")); doc.name = event.get("name").getAsString(); doc.revision++; }
+            case "receipt" -> doc = document(id(event,"workspace"));
             case "mergeRequest" -> {
                 MergeRequest request = MergeRequest.fromJson(event.getAsJsonObject("request")); merges.put(request.id, request);
             }

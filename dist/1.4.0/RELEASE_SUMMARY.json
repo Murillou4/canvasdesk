@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "release": "1.4.0",
+  "build": "gradlew.bat --no-daemon --console=plain release -x test -x check",
+  "runtimeBoundary": "Development classes executed before final GUI polish; packaged main/client/worker bytecode compared to final compiled output, not a new packaged-client launch.",
+  "mainClientClasses": 117,
+  "workerOwnClasses": 9,
+  "javaClassMajor": 69,
+  "noValidationInMod": true,
+  "helperIsNestedResource": true,
+  "nativeChromiumBinariesBundled": false,
+  "transitiveRendererNativeLibraries": 36,
+  "licensesPresent": true,
+  "previousAssetsPreserved": 272,
+  "previousRecipesPreserved": 36,
+  "newResources": [
+    "assets/canvasdesk/textures/gui/sprites/tools/embed.png",
+    "assets/canvasdesk/textures/gui/sprites/tools/materials.png"
+  ],
+  "unitTests": "artifacts/1.4.0/unit-tests/summary.json",
+  "isolatedSmoke": "artifacts/1.4.0/smoke/attempt-20261029-223909/summary.json",
+  "twoClients": "artifacts/1.4.0/multiplayer/attempt-20261029-223658/summary.json",
+  "youtube": "artifacts/1.4.0/providers/youtube-20261029-224017/summary.json",
+  "silentFixtures": "artifacts/1.4.0/silent-fixture-audit.json",
+  "files": [
+    {
+      "file": "CanvasDesk-1.4.0-source.zip",
+      "sha256": "54ac6eb32ccc1edc1d1065f9c4427ddf12233fe93d0c7dbdd086068e0a63d79f",
+      "bytes": 763954
+    },
+    {
+      "file": "canvasdesk-1.4.0-sources.jar",
+      "sha256": "0c0bdd31f13054490704519e973a321016671cabbcbcc1d0697822050f71f712",
+      "bytes": 405805
+    },
+    {
+      "file": "canvasdesk-1.4.0.jar",
+      "sha256": "0bd81fd317414e51a08d1c29ddd46b77180be2cc6da72ad7430141b0b037ff91",
+      "bytes": 8836536
+    }
+  ],
+  "finalMatchingProcesses": [],
+  "noTestProcessLeftRunning": true
+}

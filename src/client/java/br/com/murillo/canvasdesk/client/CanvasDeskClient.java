@@ -27,24 +27,35 @@ public final class CanvasDeskClient implements ClientModInitializer {
                 String json = assembler.accept(packet); if (json == null) return;
                 JsonObject state = JsonParser.parseString(json).getAsJsonObject();
                 if (state.has("kind") && state.get("kind").getAsString().equals("tile")) { SurfaceCache.accept(state); return; }
+                if(state.has("kind")&&state.get("kind").getAsString().equals("partyState")){br.com.murillo.canvasdesk.client.media.MediaPartyClient.accept(state);return;}
+                if(state.has("kind")&&state.get("kind").getAsString().equals("worldSurface")){br.com.murillo.canvasdesk.client.render.BoardOutline.accept(state);return;}
+                if(state.has("kind")&&state.get("kind").getAsString().equals("mediaState")){br.com.murillo.canvasdesk.client.media.BrowserTexture.accept(state);WorldEmbedInput.acceptState(state);return;}
+                if(state.has("kind")&&state.get("kind").getAsString().equals("mediaClosed")){br.com.murillo.canvasdesk.client.media.BrowserTexture.ended(state);WorldEmbedInput.ended(state);return;}
                 Minecraft client = context.client();
+                if(state.has("kind")&&state.get("kind").getAsString().equals("worldMedia")){WorldEmbedInput.acceptReply(client,state);return;}
+                if(state.has("kind")&&state.get("kind").getAsString().equals("checklist")){WorldChecklistInput.acceptReply(client,state);return;}
                 if (state.has("kind") && state.get("kind").getAsString().equals("assist")) {
                     AssistedPlacementInput.acceptReply(client, state); return;
                 }
                 if(state.has("closed")){if(client.gui.screen() instanceof CanvasScreen screen)screen.serverClosed(state.get("message").getAsString());return;}
-                if (state.has("open") && state.get("open").getAsBoolean()) client.setScreenAndShow(new CanvasScreen(state, CanvasDeskClient::send));
+                if (state.has("open") && state.get("open").getAsBoolean()){var screen=new CanvasScreen(state,CanvasDeskClient::send);client.setScreenAndShow(screen);WorldEmbedInput.opened(screen,state);}
                 else if (client.gui.screen() instanceof CanvasScreen screen) screen.acceptState(state);
             } catch (RuntimeException e) { CanvasDesk.LOGGER.error("Canvas Desk response rejected", e); }
         }));
         AssistedPlacementInput.register();
+        WorldChecklistInput.register();
+        WorldEmbedInput.register();
         PlacementPreview.register();
+        br.com.murillo.canvasdesk.client.render.BoardOutline.register();
         Minecraft resourceClient=Minecraft.getInstance();
         if(resourceClient.getResourceManager() instanceof ReloadableResourceManager resources)resources.registerReloadListener((ResourceManagerReloadListener)manager->{
-            resourceClient.execute(()->{SurfaceCache.clear();CanvasTextLayout.clear();});
+            resourceClient.execute(()->{SurfaceCache.clear();CanvasTextLayout.clear();br.com.murillo.canvasdesk.client.editor.MaterialsLayout.clear();br.com.murillo.canvasdesk.client.render.ItemIconAtlas.clear();});
         });
-        ClientTickEvents.END_CLIENT_TICK.register(client->{SurfaceCache.tick(client);PlacementPreview.tick(client);});
+        ClientTickEvents.END_CLIENT_TICK.register(client->{SurfaceCache.tick(client);PlacementPreview.tick(client);WorldChecklistInput.tick(client);WorldEmbedInput.tick(client);br.com.murillo.canvasdesk.client.media.MediaPartyClient.tick(client);br.com.murillo.canvasdesk.client.render.BoardOutline.tick(client);br.com.murillo.canvasdesk.client.media.BrowserTexture.tick(client);});
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
-            SurfaceCache.clear(); PlacementPreview.clear(); AssistedPlacementInput.clear();
+            SurfaceCache.clear(); PlacementPreview.clear(); AssistedPlacementInput.clear(); WorldChecklistInput.clear(); WorldEmbedInput.clear();br.com.murillo.canvasdesk.client.media.MediaPartyClient.clear();
+            br.com.murillo.canvasdesk.client.render.BoardOutline.clear();
+            br.com.murillo.canvasdesk.client.media.BrowserTexture.clear();br.com.murillo.canvasdesk.client.render.ItemIconAtlas.clear();
         }));
     }
     public static void send(JsonObject request){for(CanvasPayload part:CanvasPayload.split(request.toString()))ClientPlayNetworking.send(part);}

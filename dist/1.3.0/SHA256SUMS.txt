@@ -1,0 +1,3 @@
+e4c5073f7b920b5b1dd578fb565f17817394693b906bebc6f6708261acd1fef8  CanvasDesk-1.3.0-source.zip
+87cbcbe4ac67938fcb264a08722501e507697cc9ba5dfe1181acdad7e970ddeb  canvasdesk-1.3.0-sources.jar
+ceddc101a39d2cede8a8f66b5536ac4e83b4ac7d601df6d22cd3a13d296c92d9  canvasdesk-1.3.0.jar

@@ -1,0 +1,1 @@
+{"required":true,"package":"br.com.murillo.canvasdesk.validation.mixin","compatibilityLevel":"JAVA_25","plugin":"br.com.murillo.canvasdesk.validation.NativeInputProbePlugin","client":["NativeInputProbe","HiddenTestWindow"]}

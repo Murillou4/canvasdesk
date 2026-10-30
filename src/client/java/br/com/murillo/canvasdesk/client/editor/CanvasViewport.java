@@ -6,6 +6,7 @@ import java.util.Collection;
 public final class CanvasViewport {
     public double panX, panY, zoom = 1;
     public int left, top, right, bottom;
+    private double minimumZoom = .005, fitZoom = 1;
 
     public double documentX(double screenX) { return (screenX - left) / zoom + panX; }
     public double documentY(double screenY) { return (screenY - top) / zoom + panY; }
@@ -15,7 +16,7 @@ public final class CanvasViewport {
 
     public void zoomAt(double mouseX, double mouseY, double factor) {
         double beforeX = documentX(mouseX), beforeY = documentY(mouseY);
-        zoom = Math.clamp(zoom * factor, 0.12, 5);
+        zoom = Math.clamp(zoom * factor, Math.min(minimumZoom, zoom), 5);
         panX = beforeX - (mouseX - left) / zoom;
         panY = beforeY - (mouseY - top) / zoom;
     }
@@ -29,12 +30,14 @@ public final class CanvasViewport {
                 x2 = Math.max(x2, e.x + e.w); y2 = Math.max(y2, e.y + e.h);
             }
         }
-        zoom = Math.clamp(Math.min((right - left - 40) / Math.max(64, x2 - x1), (bottom - top - 40) / Math.max(64, y2 - y1)), 0.12, 2);
-        panX = (x1 + x2) / 2 - (right - left) / (2 * zoom);
-        panY = (y1 + y2) / 2 - (bottom - top) / (2 * zoom);
+        fitBounds(x1,y1,x2,y2);
+    }
+    public void setFitBounds(double x1,double y1,double x2,double y2){
+        fitZoom=Math.min(Math.max(1,right-left-16)/Math.max(1,x2-x1),Math.max(1,bottom-top-16)/Math.max(1,y2-y1));
+        minimumZoom=Math.min(.005,fitZoom);
     }
     public void fitBounds(double x1,double y1,double x2,double y2){
-        zoom=Math.clamp(Math.min((right-left-24)/Math.max(64,x2-x1),(bottom-top-24)/Math.max(64,y2-y1)),.005,2);
+        setFitBounds(x1,y1,x2,y2);zoom=Math.min(5,fitZoom);
         panX=(x1+x2)/2-(right-left)/(2*zoom);panY=(y1+y2)/2-(bottom-top)/(2*zoom);
     }
 }

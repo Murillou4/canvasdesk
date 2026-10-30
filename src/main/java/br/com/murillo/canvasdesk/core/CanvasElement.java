@@ -10,8 +10,17 @@ import java.util.UUID;
 /** Immutable document primitive. JSON is deliberately confined to this boundary. */
 public record CanvasElement(UUID id, Type type, double x, double y, double w, double h,
                             int color, float thickness, String text, List<Point> points,
-                            UUID from, UUID to, List<Boolean> checks, long revision, UUID group, double fontSize) {
-    public enum Type { STROKE, TEXT, RECTANGLE, ELLIPSE, LINE, ARROW, CONNECTOR, NOTE, CHECKLIST }
+                            UUID from, UUID to, List<Boolean> checks, long revision, UUID group, double fontSize,
+                            String url,List<MaterialItem> items,UUID sourceAuthor) {
+    public enum Type { STROKE, TEXT, RECTANGLE, ELLIPSE, LINE, ARROW, CONNECTOR, NOTE, CHECKLIST, EMBED, MATERIALS }
+    public CanvasElement(UUID id,Type type,double x,double y,double w,double h,int color,float thickness,String text,List<Point> points,
+                         UUID from,UUID to,List<Boolean> checks,long revision,UUID group,double fontSize,String url,List<MaterialItem> items){
+        this(id,type,x,y,w,h,color,thickness,text,points,from,to,checks,revision,group,fontSize,url,items,null);
+    }
+    public CanvasElement(UUID id,Type type,double x,double y,double w,double h,int color,float thickness,String text,List<Point> points,
+                         UUID from,UUID to,List<Boolean> checks,long revision,UUID group,double fontSize){
+        this(id,type,x,y,w,h,color,thickness,text,points,from,to,checks,revision,group,fontSize,"",List.of());
+    }
     public CanvasElement(UUID id, Type type, double x, double y, double w, double h, int color, float thickness,
                          String text, List<Point> points, UUID from, UUID to, List<Boolean> checks, long revision, UUID group) {
         this(id,type,x,y,w,h,color,thickness,text,points,from,to,checks,revision,group,9);
@@ -34,6 +43,9 @@ public record CanvasElement(UUID id, Type type, double x, double y, double w, do
             throw new IllegalArgumentException("Elemento excede o tamanho permitido por operação.");
         points = List.copyOf(points);
         checks = List.copyOf(checks);
+        url=type==Type.EMBED?EmbedSource.validate(url):"";
+        items=type==Type.MATERIALS?MaterialItem.normalize(items):List.of();
+        if(type!=Type.EMBED)sourceAuthor=null;
         for (Point p : points) { finite(p.x); finite(p.y); }
         finite(x + w); finite(y + h);
         color &= 0xFFFFFF;
@@ -53,14 +65,16 @@ public record CanvasElement(UUID id, Type type, double x, double y, double w, do
         return new Bounds(minX - padding, minY - padding, maxX + padding, maxY + padding);
     }
 
+    public CanvasElement withSourceAuthor(UUID author){return new CanvasElement(id,type,x,y,w,h,color,thickness,text,points,from,to,checks,revision,group,fontSize,url,items,author);}
+
     public CanvasElement withRevision(long next) {
-        return new CanvasElement(id, type, x, y, w, h, color, thickness, text, points, from, to, checks, next, group, fontSize);
+        return new CanvasElement(id, type, x, y, w, h, color, thickness, text, points, from, to, checks, next, group, fontSize,url,items,sourceAuthor);
     }
 
     public CanvasElement translated(double dx, double dy, UUID defaultGroup) {
         return new CanvasElement(id, type, x + dx, y + dy, w, h, color, thickness, text,
             points.stream().map(p -> new Point(p.x + dx, p.y + dy)).toList(), from, to, checks,
-            revision + 1, group == null ? defaultGroup : group, fontSize);
+            revision + 1, group == null ? defaultGroup : group, fontSize,url,items,sourceAuthor);
     }
 
     CanvasElement connected(CanvasElement start, CanvasElement end, boolean removeStart, boolean removeEnd) {
@@ -75,7 +89,7 @@ public record CanvasElement(UUID id, Type type, double x, double y, double w, do
         if (end != null) b = edge(end, centerA);
         return new CanvasElement(id, type, Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x),
             Math.abs(b.y - a.y), color, thickness, text, List.of(a, b), removeStart ? null : from,
-            removeEnd ? null : to, checks, revision, group, fontSize);
+            removeEnd ? null : to, checks, revision, group, fontSize,url,items,sourceAuthor);
     }
 
     private static Point edge(CanvasElement element, Point toward) {
@@ -92,6 +106,8 @@ public record CanvasElement(UUID id, Type type, double x, double y, double w, do
         out.addProperty("color", color); out.addProperty("thickness", thickness); out.addProperty("text", text);
         out.addProperty("revision", revision);
         out.addProperty("fontSize", fontSize);
+        if(type==Type.EMBED){out.addProperty("url",url);if(sourceAuthor!=null)out.addProperty("sourceAuthor",sourceAuthor.toString());}
+        if(type==Type.MATERIALS)out.add("items",MaterialItem.json(items));
         if (from != null) out.addProperty("from", from.toString());
         if (to != null) out.addProperty("to", to.toString());
         if (group != null) out.addProperty("group", group.toString());
@@ -116,7 +132,8 @@ public record CanvasElement(UUID id, Type type, double x, double y, double w, do
             number(input, "w", 100), number(input, "h", 60), (int) number(input, "color", 0x30302c),
             (float) number(input, "thickness", 3), input.has("text") ? input.get("text").getAsString() : "",
             points, optionalId(input, "from"), optionalId(input, "to"), checks,
-            input.has("revision") ? input.get("revision").getAsLong() : 0, optionalId(input, "group"), number(input, "fontSize", 9));
+            input.has("revision") ? input.get("revision").getAsLong() : 0, optionalId(input, "group"), number(input, "fontSize", 9),
+            input.has("url")?input.get("url").getAsString():"",MaterialItem.parse(input.getAsJsonArray("items")),optionalId(input,"sourceAuthor"));
     }
 
     private static double number(JsonObject o, String key, double fallback) {

@@ -1,0 +1,118 @@
+[
+  {
+    "id": "minecraft:cherry_planks",
+    "quantidade": 448
+  },
+  {
+    "id": "minecraft:stripped_cherry_log",
+    "quantidade": 20
+  },
+  {
+    "id": "minecraft:cherry_fence_gate",
+    "quantidade": 216
+  },
+  {
+    "id": "minecraft:cherry_stairs",
+    "quantidade": 64
+  },
+  {
+    "id": "minecraft:cherry_slab",
+    "quantidade": 320
+  },
+  {
+    "id": "minecraft:cherry_trapdoor",
+    "quantidade": 160
+  },
+  {
+    "id": "minecraft:cherry_sign",
+    "quantidade": 4
+  },
+  {
+    "id": "minecraft:cherry_door",
+    "quantidade": 4
+  },
+  {
+    "id": "minecraft:pink_banner",
+    "quantidade": 32
+  },
+  {
+    "id": "minecraft:spruce_slab",
+    "quantidade": 352
+  },
+  {
+    "id": "minecraft:spruce_stairs",
+    "quantidade": 160
+  },
+  {
+    "id": "minecraft:stripped_spruce_log",
+    "quantidade": 256
+  },
+  {
+    "id": "minecraft:barrel",
+    "quantidade": 64
+  },
+  {
+    "id": "minecraft:spruce_trapdoor",
+    "quantidade": 44
+  },
+  {
+    "id": "minecraft:oak_planks",
+    "quantidade": 12
+  },
+  {
+    "id": "minecraft:oak_stairs",
+    "quantidade": 256
+  },
+  {
+    "id": "minecraft:oak_slab",
+    "quantidade": 128
+  },
+  {
+    "id": "minecraft:oak_trapdoor",
+    "quantidade": 96
+  },
+  {
+    "id": "minecraft:dark_oak_planks",
+    "quantidade": 10
+  },
+  {
+    "id": "minecraft:dark_oak_stairs",
+    "quantidade": 128
+  },
+  {
+    "id": "minecraft:dark_oak_slab",
+    "quantidade": 224
+  },
+  {
+    "id": "minecraft:dark_oak_trapdoor",
+    "quantidade": 16
+  },
+  {
+    "id": "minecraft:dark_oak_sign",
+    "quantidade": 82
+  },
+  {
+    "id": "minecraft:dark_oak_fence_gate",
+    "quantidade": 192
+  },
+  {
+    "id": "minecraft:calcite",
+    "quantidade": 768
+  },
+  {
+    "id": "minecraft:stone_bricks",
+    "quantidade": 768
+  },
+  {
+    "id": "minecraft:stone_brick_stairs",
+    "quantidade": 128
+  },
+  {
+    "id": "minecraft:chain",
+    "quantidade": 12
+  },
+  {
+    "id": "minecraft:hopper",
+    "quantidade": 8
+  }
+]

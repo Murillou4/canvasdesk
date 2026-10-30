@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "name": "Canvas Desk runtime validation (development only)",
   "environment": "client",
+  "mixins": ["canvasdesk-native-input.mixins.json"],
   "entrypoints": {
     "client": ["br.com.murillo.canvasdesk.validation.PerformanceProbe"],
     "fabric-client-gametest": ["br.com.murillo.canvasdesk.validation.RuntimeValidation"]

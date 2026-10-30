@@ -1,6 +1,22 @@
-# Canvas Desk 1.2.1 implementation contract
+# Canvas Desk 1.5.0 implementation contract
 
 Minecraft 26.3, Java 25, Fabric Loader 0.19.5, API 0.164.0+26.3, Loom 1.17.21, Gradle 9.6.0. Native Mojang names; split main/client source sets. Never load client types on a dedicated server.
+
+## 1.5.0 party, source edits and ordered input
+
+CanvasElement adds optional `sourceAuthor` UUID, default null for legacy elements. CanvasStore sets it from the authenticated actor only when creating an EMBED or changing its URL; client-supplied authorship is ignored. Revision updates, transforms, history and merges retain the stored value. An atomic URL edit retains identity/title/geometry and uses the existing durable acknowledgement. SharedMedia invalidates the previous session immediately after a committed source/removal/history change. Stale source/session commands cannot affect the replacement.
+
+MediaParties is transient and server-owned: one membership per player, whole-document scope, explicit guest consent, and automatic current-author membership unless declined. Last play activates one element for audio per document. Listening grants no ACL or playback rights. Guest consent clears on disconnect; legacy null authors require explicit consent. Party joins require physical range, identity, current access and vanilla/Fabric protection dispatch; party polling and continuous listening do not grant remote controls. Source changes preserve the party; document merges end affected parties. Playback, consent and polling never write the journal.
+
+`partyJoin` carries anchor/module/workspace/element/mode and a nonce; `partyLeave` and `partyPoll` need no editor session. `partyState` reports only the receiving player's membership, mode, active element/anchor and `audioAllowed`. mediaState carries independent authorization and media revision. A local leave suppresses gain immediately before acknowledgement. PROXIMITY is full gain through 4 blocks, linear to zero at 16; CONTINUOUS pins the active helper even offscreen. Final gain multiplies consent, local volume and Minecraft master volume. Server snapshot freshness is required. Cookies, credentials and form contents never enter shared media payloads.
+
+BrowserWorker creates about:blank and configures/reads back the native request-context sound preference before loading untrusted pages. If unavailable it exits without loading and requests a process policy restart (`--mute-audio` for blocked clients), retaining the stable local profile. Preference mutations occur on CEF UI callbacks. Tests always add a separate immutable `--mute-audio`; audibility is not inferred from silent configuration checks.
+
+BrowserCommandQueue preserves reliable ordered key/text/button input and reports bounded overflow explicitly. Only motion, continuous state and audio policy are coalesced; policy/focus updates precede dependent input. A dedicated writer keeps IO off the game thread, with sequence acknowledgements. Unicode CDP text uses ASCII JSON escapes across JNI. CanvasDevTools correlates both early replies and identifier-first responses: the pinned JCEF's default future composition can discard a reply received before its native request ID. This source adapter uses existing JCEF APIs and does not patch native libraries. Clipboard is local; production copy/cut uses Chromium's focused frame. The isolated probe substitutes an in-memory clipboard and does not touch the user's clipboard.
+
+BrowserPanel owns address drafts separately from snapshots and decoder state. Ir/Enter remains available to editors while loading/failure; submission is a normal durable document edit, never a transient navigation command. Conflicts preserve the draft. Page focus and address focus are exclusive, restore after resize/dialogs, update text-composition bounds, and consume text before canvas shortcuts. Readers may use local forms; shared commands remain ACL-checked.
+
+JCEF Maven remains 152.0.6. Runtime diagnostics check EME/Widevine and MP4 support without installing external DRM. Unsupported Netflix playback is reported as a limitation, retaining address/navigation. No Electron migration, EVS registration or external subscription is introduced.
 
 ## Boundaries and compatibility
 
@@ -49,9 +65,9 @@ Additional editor sounds are an optional local preference, default off, rate lim
 
 ## Packaging and verification
 
-Generate from sources, never edit a JAR. `release -x test -x check` packages main/client only, source JAR/project, docs and SHA-256 into dist/1.2.1. Personal installations stay unchanged.
+Generate from sources, never edit a JAR. `release -x test -x check` packages main/client only, source JAR/project, docs and SHA-256 into dist/1.5.0. Personal installations stay unchanged.
 
-Unit tests are time bounded; GUI/world/multiplayer acceptance remains manual in this round. Record current evidence separately from 1.1.0. Asset generation and static validation are separate modes. No Minecraft client is launched by either mode.
+Unit tests and focused GUI/world smoke are time bounded; real two-client collaboration remains a separate acceptance boundary. Record current evidence separately from 1.1.0. Asset generation and static validation are separate modes. No Minecraft client is launched by either mode.
 
 ## 1.2.1 interaction contract
 
@@ -66,3 +82,56 @@ UseBlockCallback and UseItemCallback intercept client input only when a candidat
 New request assistPlace: operationId UUID, hand name, anchor packed position, moduleId UUID, target packed position, direction name, yaw/pitch. It needs no editor session. Server uses its own eye/inventory/world, recomputes from the finite requested orientation, compares the expected anchor/module/target/direction, checks cooldown/mode/range/world border/permissions, and dispatches through ServerPlayerGameMode.useItemOn. Scope the expected placement across callbacks and revalidate before item.place; a changed anchor must fail without selecting another target. Keep at most 64 placement receipts per online player and accept at most one new attempt per server tick. Reply kind=assist is routed separately from editor state.
 
 The focused interaction smoke runs in an isolated test profile with a 180-second external deadline and explicit bounded waits. Existing user processes are never cleanup targets. Full editor/multiplayer acceptance is independent of this smoke.
+
+## 1.3.0 editor and world checklist contract
+
+CanvasEditorLayout owns the GUI rectangles: 94% x 92% panel, no fixed 800x500 cap, header 20, footer 14 and reserved side rails 24. Widgets remain at least 20 units. The left rail starts with selection/undo/redo/fit; tools overflow by available height. The right rail holds access/help/close/properties. Painting, camera, tooltips and input share these rectangles.
+
+Fit uses the connected physical bounds with 8 GUI units of padding per side and uniform scale. Fit and wheel share maximum zoom 5; the effective minimum can fall below .005 for large surfaces. Preserve manual camera across resize/topology changes; F restores automatic framing.
+
+Tiles additionally carry moduleId. SurfaceCache retains immutable interaction metadata and font-derived layout alongside pixels, updating metadata even on an unchanged image. The front-paper eye ray uses BoardPlane and printable DeskGeometry bounds for both formats; no unloaded chunk is requested. Hover calculation runs on ticks, rendering only consumes the cached target. Topmost content blocks covered boxes.
+
+worldChecklist requires no editor session: operationId, pos, moduleId, canonical workspace and tileX/Y, elementId, expectedRevision, logical row, desired checked value, finite yaw/pitch. Empty main hand, no sneak and no selected module are required. Server checks current identity/projection, reach, occlusion, border, interaction permission, editor ACL and checklist/row/revision, then dispatches through vanilla useItemOn and protection callbacks. The scoped interaction revalidates after callbacks and consumes only the pinned task; it must never open a replaced block or editor. Replies kind=checklist route independently of Screen state.
+
+Client font metrics identify the precise visual row. Dedicated servers have no Font dependency: they validate paper position, box column and bounded checklist region. This narrow request grants no ability beyond an editor's existing document ACL. Core setChecklistItem reconstructs only checks from the authoritative element, does not revise connectors, and uses normal durable history/receipts. A no-op records a receipt event without changing element/document revision or history. Existing snapshots need no migration; receipt journal events are additive in 1.3.0.
+
+One physical press sends one operation; held-button repeats and the offhand fallback remain consumed until release. Conflicts refresh tiles without optimistic inversion. Changed tiles are pushed through a bounded queue of at most 32 per server tick, including readers and open editors. Online failed-request receipts remain bounded to 64/player and rate limited to one new request per tick.
+
+Use tools/validate-editor.ps1 after compileGametestJava for the isolated 1.3.0 smoke (180 seconds total, no unbounded screen waits). Source-set test classes never ship. Distinguish this one-client evidence from real two-client collaboration and other unexecuted acceptance checks.
+
+
+## 1.4.0 input, silhouettes and new document types
+
+InlineTextEditor is a focused GuiEventListener/NarratableEntry. Focus ownership calls Minecraft.onTextInputFocusChange, updating the native TextInputManager and IME area. Rebuild/resize restores focus; finish, removal and permission loss release it. Dialog rebuilds must not leave focus on removed widgets. Text input owns its shortcuts before tools.
+
+worldSurface publishes the existing revisioned SurfaceLayout outside editor sessions. SurfaceContour joins exposed physical module edges, preserving concavities and holes. Cache world segments per module/revision; BEFORE_BLOCK_OUTLINE suppresses the per-block outline. No module discovery occurs while drawing. Checkbox hover retains the action text, with no individual shape outline.
+
+CanvasElement adds EMBED(url, text as title) and MATERIALS(text as title, items [{id,quantidade}]). Optional fields default empty on older element types. Immutable transformations, grouping, joins, object storage and history retain both fields. MaterialItem validates exact positive integers, merges duplicates with checked addition and preserves first order, up to 512 input entries before duplicate merging. Registry lookup stays client-only; unavailable IDs remain document data. MaterialsLayout is shared by editor and world. Native GuiItemAtlas uses a private FeatureRenderDispatcher/buffers, bounded preparation and cache invalidation on resource reload. Live browser uploads and item preparation occur at GameRenderer.render HEAD, outside any open RenderPearl pass.
+
+## 1.4.0 browser and media transport
+
+A separate browser source set builds a bundled worker JAR resource; its JCEF/Chromium classes and native libraries are never loaded by the mod classloader. First use extracts the worker by content hash, then starts a helper JVM using argument lists. NativeRuntime pins publisher SHA-256 digests, serializes installation across processes, verifies the installed file manifest and bounds download/installation. Helpers communicate through newline JSON commands/events and a seqlock-protected 1280x720 RGBA shared frame, capped at 30 FPS. Main-thread work only handles cached state and GPU uploads. At most two helpers are active per client; cancellation and cleanup target only owned processes.
+
+mediaSubscribe/mediaControl require no editor session: canonical workspace, elementId, packed anchor pos, moduleId. Controls add source, mediaSession, mediaRevision, command and its bounded position/url/scroll data. Server checks loaded module identity, canonical projection, visible surface, distance, ACL, interaction permission and Fabric block protection callbacks. Commands are ordered by transient revision; stale sessions/revisions return current state without editing a document. mediaState replies are routed separately from durable edit ACKs and never replace a CanvasScreen. Owners/guests control; readers follow. A session UUID prevents commands from an old source/join timeline from affecting a new one.
+
+MediaTimeline uses monotonic server time. Snapshots include source, navigationUrl, mediaSession, mediaRevision, playing, position, scrollX/Y and serverTime; clients project time between snapshots and correct drift above .5 seconds. Source changes, removal and joins discard affected sessions; server restart starts paused at zero. Only source/title/geometry live in the durable document. URLs/scroll and video clocks are shared; browser cookies, form contents and audio preference never enter the payload. JCEF navigation rejects non-HTTP top-level destinations and leaves form submissions local. YouTube uses its official iframe API through a loopback origin/referrer; direct files use HTMLMediaElement.
+
+Validation evidence must name real Windows/SDL input separately from direct native text callbacks. Fabric GameTest normally cancels real SDL events; the isolated test mixin re-enables them only for the features role, in its own mixin package. It never ships in the mod JAR. Every smoke attempt has an independent directory and an external 180-second total watchdog, recording PID/creation time before cleanup. Two real clients are a separate acceptance run.
+
+
+### Final 1.4.0 lifecycle details
+
+`mediaClosed` carries workspace/element/source/session identity and explicitly stops the matching old helper. Late events cannot close a replacement session. `navigationRevision` distinguishes explicit same-address reloads from periodic snapshots; a shared explicit navigation leaves private form context. Bounded nonce receipts remain separate from periodic state and durable document acknowledgements.
+
+Native installation records verified file size/mtime alongside hashes; unchanged manifests reuse the verified cache and changed files are rehashed. Helper profiles are stable per local player/document/element, with an exclusive lease across helper restarts. Child process handles are recorded before shutdown so cleanup can include descendants after an unexpected parent exit. Native MIME detection for extensionless videos uses a bounded HEAD request off the game thread. EmbedGeometry letterboxes the same 16:9 browser texture in editor and world without distorting its coordinates.
+
+Validation profiles are muted and the synthetic fixture has no audio stream. The helper's test-only browserSilent property adds Chromium --mute-audio; this property is not enabled by normal runClient or by the released mod. Hidden SDL validation windows never take desktop focus, and ordinary GameTest input guards remain active in hidden mode. Actual OS/SDL evidence and callback evidence must remain separately labeled. See VALIDATION_STATUS.md for the exact code and runtime boundary of each release.
+
+
+## Direct world video control (introduced in 1.4.1)
+
+`worldMedia` requires no editor session. Fields are operationId UUID, pos, moduleId, canonical workspace, tileX/Y, elementId, expectedRevision (element), source URL and finite yaw/pitch. The server checks empty MAIN hand/no sneak/no selected module, spectator/world border/interaction permissions, loaded identity and projection, ACL, front-paper ray with actual block interaction range/obstacles, current element revision/source, printable surface and fitted video image bounds. The client uses cached topmost ink, excluding letterboxing, to identify the visible video. Known YouTube/file URLs work before the decoder starts; MIME-recognized extensionless videos become eligible when their existing helper is ready. Ordinary sites retain focused Interagir opening.
+
+Physical media and checklist actions share the pinned vanilla dispatch in ChecklistInteraction. Fabric/vanilla protection callbacks run normally; identity/source/ACL are revalidated afterward, and the scoped block handler consumes the action once without opening the editor or a replacement block. One press latches until release, including offhand/air fallbacks. A pending request owns the press and times out after 5s without an automatic retry. Main-hand module/dye priorities remain unchanged. Sneak opens the normal editor; readers can use the party menu to open it read-only.
+
+A world press is an authoritative `toggle` ordered on the server thread: it preserves the current clock position and never supplies a stale client seek. Per-player online receipts deduplicate 64 operation UUIDs and commands share the existing 50ms limiter. Playback remains transient and does not alter document revision/journal/history. `kind=worldMedia` acknowledges operationId/nonce separately from `mediaState` broadcasts; replaying a receipt cannot reset playback or open/replace a screen. The world HUD caches 64 media snapshots by document/element, updates with broadcasts and clears on disconnect. Existing media subscribers, including open editors and other clients, receive the same new timeline revision.

@@ -29,6 +29,36 @@ public final class SurfaceCache {
     private static final Map<Integer,Glyph> GLYPHS=new HashMap<>();
     private static boolean fontLoaded;
     private static int tick;
+    public record Checkbox(CanvasElementView element,int row,double x,double y,double size) {}
+    public record InteractionTile(String moduleId,String workspace,double x,double y,boolean editable,
+                                  List<CanvasElementView> elements,Map<String,CanvasElementView> byId) {}
+    public record Layer(Identifier texture,String item,String embed,double x,double y,double w,double h) {}
+    public static List<Layer> layers(BlockPos pos){Tile t=TILES.get(pos.asLong());if(t==null)return List.of();
+        for(var layer:t.layers)if(layer.embed!=null){var e=t.interaction.byId.get(layer.embed);if(e!=null)br.com.murillo.canvasdesk.client.media.BrowserTexture.visible(t.interaction.workspace,e,pos,t.interaction.moduleId);}
+        return t.layers;
+    }
+    public static InteractionTile interaction(BlockPos pos){Tile t=TILES.get(pos.asLong());return t==null?null:t.interaction;}
+    public static void request(BlockPos pos){WANTED.put(pos.asLong(),0L);SEEN.put(pos.asLong(),tick);}
+    /** Same font layout as rasterisation; cached by immutable element, never split text while rendering. */
+    public static Checkbox checkbox(InteractionTile tile,double x,double y){
+        var e=topElement(tile,x,y);if(e==null||!e.type.equals("CHECKLIST"))return null;
+        var l=CanvasTextLayout.of(Minecraft.getInstance().font,e);int row=l.checkAt(x-e.x,y-e.y);
+        for(var c:l.checks())if(c.index()==row)return new Checkbox(e,row,e.x+l.padding(),e.y+c.y(),l.boxSize());return null;
+    }
+    public static CanvasElementView topElement(InteractionTile tile,double x,double y){
+        for(int i=tile.elements.size()-1;i>=0;i--){var e=tile.elements.get(i);if(inkAt(e,tile.byId,x,y))return e;}return null;
+    }
+    private static boolean inkAt(CanvasElementView e,Map<String,CanvasElementView> byId,double x,double y){
+        double dx=x-e.x,dy=y-e.y,t=e.thickness/2+1;
+        if(Set.of("NOTE","CHECKLIST","EMBED","MATERIALS").contains(e.type))return dx>=0&&dx<=e.w&&dy>=0&&dy<=e.h;
+        if(e.type.equals("TEXT")){var l=CanvasTextLayout.of(Minecraft.getInstance().font,e);return dx>=0&&dx<=l.width()&&dy>=0&&dy<=l.height();}
+        if(e.type.equals("RECTANGLE"))return dx>=-t&&dx<=e.w+t&&dy>=-t&&dy<=e.h+t&&(Math.abs(dx)<=t||Math.abs(dx-e.w)<=t||Math.abs(dy)<=t||Math.abs(dy-e.h)<=t);
+        if(e.type.equals("ELLIPSE")){double rx=Math.max(.5,e.w/2),ry=Math.max(.5,e.h/2);return Math.abs(Math.hypot((dx-rx)/rx,(dy-ry)/ry)-1)*Math.min(rx,ry)<=t;}
+        if(e.type.equals("STROKE")){for(int j=0;j<e.points.size();j++){var a=e.points.get(Math.max(0,j-1));var b=e.points.get(j);if(segment(x,y,a.x(),a.y(),b.x(),b.y())<=t)return true;}return false;}
+        double[] p=CanvasPainter.endpoints(e,byId);if(segment(x,y,p[0],p[1],p[2],p[3])<=t)return true;
+        if(!e.type.equals("LINE")){double angle=Math.atan2(p[3]-p[1],p[2]-p[0]),len=Math.max(9,e.thickness*3);for(double a:new double[]{angle-.48,angle+.48})if(segment(x,y,p[2],p[3],p[2]-len*Math.cos(a),p[3]-len*Math.sin(a))<=t)return true;}return false;
+    }
+    private static double segment(double x,double y,double ax,double ay,double bx,double by){double dx=bx-ax,dy=by-ay,t=Math.clamp(((x-ax)*dx+(y-ay)*dy)/Math.max(1e-12,dx*dx+dy*dy),0,1);return Math.hypot(x-ax-t*dx,y-ay-t*dy);}
     private SurfaceCache(){}
     public static Identifier texture(BlockPos pos){
         long key=pos.asLong();WANTED.putIfAbsent(key,0L);SEEN.put(key,tick);Tile tile=TILES.get(key);return tile==null?null:tile.id;
@@ -54,30 +84,60 @@ public final class SurfaceCache {
     public static void accept(JsonObject state){
         long pos=state.get("pos").getAsLong();Minecraft client=Minecraft.getInstance();int size=resolution(client,BlockPos.of(pos));
         String fingerprint=state.getAsJsonArray("elements").toString()+state.get("tileX")+state.get("tileY")+state.get("background")+"@"+size;
-        Tile old=TILES.get(pos);if(old!=null&&old.fingerprint.equals(fingerprint))return;
-        BufferedImage bitmap=raster(state);NativeImage image=new NativeImage(size,size,true);
-        for(int y=0;y<size;y++)for(int x=0;x<size;x++)image.setPixel(x,y,bitmap.getRGB(x*256/size,y*256/size));
-        Identifier id=old==null?CanvasDesk.id("surface/"+Long.toUnsignedString(pos)):old.id;
-        if(old!=null){client.getTextureManager().release(old.id);cacheBytes-=old.size*old.size*4;}
-        DynamicTexture texture=new DynamicTexture(()->"Canvas Desk surface",image);client.getTextureManager().register(id,texture);
-        TILES.put(pos,new Tile(id,fingerprint,size));cacheBytes+=size*size*4;
-        while(cacheBytes>LIMIT||TILES.size()>2048){Long first=TILES.keySet().iterator().next();Tile removed=TILES.remove(first);cacheBytes-=removed.size*removed.size*4;client.getTextureManager().release(removed.id);}
+        Tile old=TILES.get(pos);boolean unchanged=old!=null&&old.fingerprint.equals(fingerprint);
+        List<CanvasElementView> elements;
+        Map<String,CanvasElementView> byId;
+        if(unchanged){elements=old.interaction.elements;byId=old.interaction.byId;}
+        else{
+            var list=new ArrayList<CanvasElementView>();var map=new LinkedHashMap<String,CanvasElementView>();
+            for(JsonElement v:state.getAsJsonArray("elements")){var e=new CanvasElementView(v.getAsJsonObject());list.add(e);map.put(e.id,e);if(e.type.equals("CHECKLIST")||e.type.equals("TEXT"))CanvasTextLayout.of(client.font,e);}
+            elements=List.copyOf(list);byId=Collections.unmodifiableMap(map);
+        }
+        InteractionTile interaction=new InteractionTile(state.has("moduleId")?state.get("moduleId").getAsString():"",state.get("workspace").getAsString(),state.get("tileX").getAsDouble(),state.get("tileY").getAsDouble(),state.get("editable").getAsBoolean(),elements,byId);
+        if(unchanged){TILES.put(pos,new Tile(old.id,fingerprint,size,interaction,old.layers,old.textures));return;}
+        if(old!=null){release(old);cacheBytes-=old.textures.size()*old.size*old.size*4;}
+        List<Layer> layers=new ArrayList<>();List<Identifier> textures=new ArrayList<>();JsonArray pending=new JsonArray();
+        for(var e:elements){pending.add(e.json);
+            if(e.type.equals("MATERIALS")||e.type.equals("EMBED")){
+                rasterLayer(state,pending,pos,size,layers,textures);pending=new JsonArray();
+                if(e.type.equals("EMBED")){var r=br.com.murillo.canvasdesk.core.EmbedGeometry.fit(e.x,e.y,e.w,e.h);layers.add(new Layer(null,null,e.id,r.x(),r.y(),r.w(),r.h()));}
+                else for(var cell:br.com.murillo.canvasdesk.client.editor.MaterialsLayout.of(client.font,e).cells())layers.add(new Layer(null,cell.item().id(),null,e.x+cell.x(),e.y+cell.y(),cell.size(),cell.size()));
+            }
+        }
+        if(!pending.isEmpty()||textures.isEmpty())rasterLayer(state,pending,pos,size,layers,textures);
+        Tile tile=new Tile(textures.getFirst(),fingerprint,size,interaction,List.copyOf(layers),List.copyOf(textures));TILES.put(pos,tile);cacheBytes+=textures.size()*size*size*4;
+        while(cacheBytes>LIMIT||TILES.size()>2048){Long first=TILES.keySet().iterator().next();Tile removed=TILES.remove(first);cacheBytes-=removed.textures.size()*removed.size*removed.size*4;release(removed);}
     }
-    public static void clear(){Minecraft client=Minecraft.getInstance();for(Tile tile:TILES.values())client.getTextureManager().release(tile.id);TILES.clear();WANTED.clear();SEEN.clear();cacheBytes=0;GLYPHS.clear();fontLoaded=false;}
+    private static void release(Tile tile){for(var id:tile.textures)Minecraft.getInstance().getTextureManager().release(id);}
+    private static void rasterLayer(JsonObject state,JsonArray elements,long pos,int size,List<Layer> layers,List<Identifier> textures){
+        BufferedImage bitmap=raster(state,elements);NativeImage image=new NativeImage(size,size,true);for(int y=0;y<size;y++)for(int x=0;x<size;x++)image.setPixel(x,y,bitmap.getRGB(x*256/size,y*256/size));
+        Identifier id=CanvasDesk.id("surface/"+Long.toUnsignedString(pos)+"/"+textures.size());Minecraft.getInstance().getTextureManager().register(id,new DynamicTexture(()->"Canvas Desk vectors",image));textures.add(id);
+        layers.add(new Layer(id,null,null,state.get("tileX").getAsDouble(),state.get("tileY").getAsDouble(),256,256));
+    }
+    public static void clear(){for(Tile tile:TILES.values())release(tile);TILES.clear();WANTED.clear();SEEN.clear();cacheBytes=0;GLYPHS.clear();fontLoaded=false;}
 
     static BufferedImage raster(JsonObject state){
+        return raster(state,state.getAsJsonArray("elements"));
+    }
+    private static BufferedImage raster(JsonObject state,JsonArray drawing){
         BufferedImage image=new BufferedImage(256,256,BufferedImage.TYPE_INT_ARGB);Graphics2D g=image.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
         double tileX=state.get("tileX").getAsDouble(),tileY=state.get("tileY").getAsDouble();g.translate(-tileX,-tileY);g.setClip(new Rectangle2D.Double(tileX,tileY,256,256));
         Map<String,CanvasElementView> elements=new LinkedHashMap<>();
         for(JsonElement value:state.getAsJsonArray("elements")){CanvasElementView e=new CanvasElementView(value.getAsJsonObject());elements.put(e.id,e);}
-        for(JsonElement value:state.getAsJsonArray("elements"))draw(g,value.getAsJsonObject(),elements);g.dispose();return image;
+        for(JsonElement value:drawing)draw(g,value.getAsJsonObject(),elements);g.dispose();return image;
     }
     private static void draw(Graphics2D g,JsonObject e,Map<String,CanvasElementView> elements){
         double x=num(e,"x",0),y=num(e,"y",0),w=num(e,"w",100),h=num(e,"h",60);int color=(int)num(e,"color",0x30302c);
         g.setColor(new Color(color|0xff000000,true));g.setStroke(new BasicStroke((float)Math.max(.5,num(e,"thickness",3)),BasicStroke.CAP_ROUND,BasicStroke.JOIN_ROUND));
         String type=e.get("type").getAsString();
         switch(type){
+            case "MATERIALS"->{
+                var element=new CanvasElementView(e);var layout=br.com.murillo.canvasdesk.client.editor.MaterialsLayout.of(Minecraft.getInstance().font,element);g.setColor(new Color(0xfff7f5ec,true));g.fill(new Rectangle2D.Double(x,y,w,layout.height()));g.setColor(new Color(color|0xff000000,true));g.fill(new Rectangle2D.Double(x,y,3,layout.height()));
+                double s=layout.scale(),yy=8*s;for(var line:layout.title()){StringBuilder value=new StringBuilder();line.accept((i,style,cp)->{value.appendCodePoint(cp);return true;});Graphics2D text=(Graphics2D)g.create();text.translate(x+8*s,y+yy);text.scale(s,s);text(text,value.toString(),0,0);text.dispose();yy+=12*s;}
+                for(var cell:layout.cells()){String value=Integer.toString(cell.item().quantidade());Graphics2D text=(Graphics2D)g.create();text.translate(x+cell.x()+cell.size()/2,y+cell.quantityY());text.scale(s,s);text(text,value,-Minecraft.getInstance().font.width(value)/2.0,0);text.dispose();}
+            }
+            case "EMBED"->{g.setColor(new Color(0xffe7e2d7,true));g.fill(new Rectangle2D.Double(x,y,w,h));g.setColor(new Color(color|0xff000000,true));text(g,str(e,"text"),x+8,y+8);Path2D play=new Path2D.Double();play.moveTo(x+w/2-6,y+h/2-9);play.lineTo(x+w/2+9,y+h/2);play.lineTo(x+w/2-6,y+h/2+9);play.closePath();g.fill(play);}
             case "STROKE"->{Path2D path=new Path2D.Double();boolean start=true;for(JsonElement point:e.getAsJsonArray("points")){JsonObject p=point.getAsJsonObject();double px=num(p,"x",0),py=num(p,"y",0);if(start){path.moveTo(px,py);start=false;}else path.lineTo(px,py);}g.draw(path);if(e.getAsJsonArray("points").size()==1){JsonObject p=e.getAsJsonArray("points").get(0).getAsJsonObject();double t=num(e,"thickness",3);g.fill(new Ellipse2D.Double(num(p,"x",0)-t/2,num(p,"y",0)-t/2,t,t));}}
             case "RECTANGLE"->g.draw(new Rectangle2D.Double(x,y,w,h));
             case "ELLIPSE"->g.draw(new Ellipse2D.Double(x,y,w,h));
@@ -136,5 +196,5 @@ public final class SurfaceCache {
         }catch(Exception e){CanvasDesk.LOGGER.debug("Font provider unavailable {}: {}",file,e.toString());}
     }
     private record Glyph(BufferedImage image,float scale,float ascent,float advance){}
-    private record Tile(Identifier id,String fingerprint,int size){}
+    private record Tile(Identifier id,String fingerprint,int size,InteractionTile interaction,List<Layer> layers,List<Identifier> textures){}
 }

@@ -38,12 +38,13 @@ public final class CanvasScreen extends Screen {
         CHECKLIST("checklist", "Lista", "Checklist", "C"), RECTANGLE("rectangle", "Retângulo", "Rectangle", "R"),
         ELLIPSE("ellipse", "Elipse", "Ellipse", "O"), LINE("line", "Linha", "Line", "L"),
         ARROW("arrow", "Seta", "Arrow", "A"), CONNECTOR("connector", "Conectar elementos", "Connect elements", "K"),
-        ERASER("eraser", "Apagar elemento", "Erase element", "E"), PAN("pan", "Mover visão", "Pan", "H");
+        ERASER("eraser", "Apagar elemento", "Erase element", "E"), PAN("pan", "Mover visão", "Pan", "H"),
+        EMBED("embed","Link / site / vídeo","Link / site / video","U"), MATERIALS("materials","Materiais","Materials","M");
         final String sprite, pt, en, key;
         Tool(String sprite, String pt, String en, String key) { this.sprite = sprite; this.pt = pt; this.en = en; this.key = key; }
     }
     private enum Drag { NONE, DRAW, MOVE, RESIZE, BOX, PAN, ERASE }
-    private enum Dialog { NONE, TEXT, COLOR, FONT, RENAME, ACCESS, MERGE, HELP, TOOLS, PROPERTIES, CONFLICT }
+    private enum Dialog { NONE, TEXT, COLOR, FONT, RENAME, ACCESS, MERGE, HELP, TOOLS, PROPERTIES, CONFLICT, MATERIALS, EMBED, BROWSER, PARTY }
     private record Change(CanvasElementView before, JsonObject after) {}
     private record AccessRow(String title, String description, String button, Runnable action) {}
 
@@ -71,6 +72,7 @@ public final class CanvasScreen extends Screen {
     private JsonObject mergeTarget;
     private int dialogX, dialogY, dialogW, dialogH;
     private int panelX,panelY,panelW,panelH;
+    private CanvasEditorLayout layout;
     private boolean autoFit=true,surfaceUpdating,closing,textSelecting;
     private SurfaceLayout surface;
     private final Map<String,List<String>> paintTiles=new LinkedHashMap<>();
@@ -83,6 +85,10 @@ public final class CanvasScreen extends Screen {
     private CanvasElementView lastCoverageDraft;
     private long lastCoverageRevision=-1;
     private boolean textOverflow;
+    private MaterialsEditor materialsEditor;
+    private BrowserPanel browserPanel;
+    private PartyMenu partyMenu;
+    private String requestedEmbed="";
 
     public CanvasScreen(JsonObject state, Consumer<JsonObject> send) {
         super(Component.literal("Canvas Desk"));
@@ -114,6 +120,10 @@ public final class CanvasScreen extends Screen {
             CanvasElementView e = new CanvasElementView(value.getAsJsonObject()); elements.put(e.id, e);
         }
         selection.retainAll(elements.keySet());selection.removeIf(id->!visible(elements.get(id)));
+        if(initialized&&browserPanel!=null){
+            if(!browserPanel.matches(string(state,"workspace",""),elements)){if(dialog==Dialog.PARTY)dialog=Dialog.BROWSER;closeDialog();status("O embed mudou ou foi removido.");}
+            else {var e=elements.get(browserPanel.elementId());var replacement=e.url.equals(browserPanel.source())?null:focusBrowser(e);browserPanel.accept(e,replacement,ownAck,incoming);}
+        }
         if (incoming.has("ackAction") && string(incoming, "ackAction", "").equals(pendingAction)
             && (pendingOperation.isEmpty() || string(incoming, "ackOperation", "").equals(pendingOperation))) {
             saving = false; pendingAction = ""; pendingOperation = "";
@@ -123,39 +133,44 @@ public final class CanvasScreen extends Screen {
         if(inline!=null&&inline.active)selection.add(inline.id);
         if(initialized){
             rebuildPaintIndex();
-            if(surfaceChanged){cancelGesture();if(autoFit)fit();else queueView();}
+            if(surfaceChanged){cancelGesture();if(autoFit)fit();else {updateFitLimits();queueView();}}
             if(dialog==Dialog.ACCESS)rebuildControls();
+            if(!requestedEmbed.isEmpty()&&elements.containsKey(requestedEmbed)&&!surfaceUpdating){String id=requestedEmbed;requestedEmbed="";focusEmbed(id);}
         }
         if (!editable && drag != Drag.NONE && drag != Drag.PAN && drag != Drag.BOX) cancelGesture();
+        if(!editable&&inline!=null)inline.setFocused(false);
     }
 
     @Override protected void init() {
         double centerX=viewport.documentX((viewport.left+viewport.right)/2.0),centerY=viewport.documentY((viewport.top+viewport.bottom)/2.0);
-        panelW=Math.min(800,Math.max(160,(int)(width*.86)));panelH=Math.min(500,Math.max(120,(int)(height*.84)));
-        panelW=Math.min(width-8,panelW);panelH=Math.min(height-8,panelH);panelX=(width-panelW)/2;panelY=(height-panelH)/2;
-        viewport.left=panelX+1;viewport.top=panelY+46;viewport.right=panelX+panelW-1;viewport.bottom=panelY+panelH-15;
+        layout=CanvasEditorLayout.of(width,height);
+        panelX=layout.panel().x();panelY=layout.panel().y();panelW=layout.panel().w();panelH=layout.panel().h();
+        viewport.left=layout.canvas().x();viewport.top=layout.canvas().y();viewport.right=layout.canvas().right();viewport.bottom=layout.canvas().bottom();
+        updateFitLimits();
         if(initialized&&!autoFit){viewport.panX=centerX-(viewport.right-viewport.left)/(2*viewport.zoom);viewport.panY=centerY-(viewport.bottom-viewport.top)/(2*viewport.zoom);}
         initialized=true;rebuildControls();rebuildPaintIndex();if(autoFit)fit();else queueView();
     }
     private void rebuildControls() {
-        String currentText=textField==null?null:textField.getValue();clearWidgets();textField=null;
+        String currentText=textField==null?null:textField.getValue();clearFocus();clearWidgets();textField=null;
         if(dialog!=Dialog.NONE){buildDialog(currentText);return;}
-        int y=panelY+22,x=panelX+4;
-        icon(x,y,"select",tr("Selecionar · V","Select · V"),()->selectTool(Tool.SELECT),()->tool==Tool.SELECT,()->true);x+=24;
-        icon(x,y,"undo",tr("Desfazer · Ctrl+Z","Undo · Ctrl+Z"),()->action("undo"),()->false,this::canEdit);x+=24;
-        icon(x,y,"redo",tr("Refazer · Ctrl+Y","Redo · Ctrl+Y"),()->action("redo"),()->false,this::canEdit);x+=24;
-        icon(x,y,"fit",tr("Enquadrar superfície · F","Fit surface · F"),this::fit,()->false,()->true);x+=24;
-        int count=Math.min(Tool.values().length-1,Math.max(0,(panelW-8-96-48)/24));
+        int y=layout.leftRail().y()+2,x=layout.leftRail().x()+1;
+        icon(x,y,"select",tr("Selecionar · V","Select · V"),()->selectTool(Tool.SELECT),()->tool==Tool.SELECT,()->true);y+=22;
+        icon(x,y,"undo",tr("Desfazer · Ctrl+Z","Undo · Ctrl+Z"),()->action("undo"),()->false,this::canEdit);y+=22;
+        icon(x,y,"redo",tr("Refazer · Ctrl+Y","Redo · Ctrl+Y"),()->action("redo"),()->false,this::canEdit);y+=22;
+        icon(x,y,"fit",tr("Enquadrar superfície · F","Fit surface · F"),this::fit,()->false,()->true);y+=22;
+        int count=Math.min(Tool.values().length-1,Math.max(0,(layout.leftRail().h()-4)/22-5));
         for(int i=1;i<=count;i++){
-            Tool candidate=Tool.values()[i];icon(x,y,candidate.sprite,tr(candidate.pt,candidate.en)+" · "+candidate.key,()->selectTool(candidate),()->tool==candidate,()->editable||candidate==Tool.PAN);x+=24;
+            Tool candidate=Tool.values()[i];icon(x,y,candidate.sprite,tr(candidate.pt,candidate.en)+" · "+candidate.key,()->selectTool(candidate),()->tool==candidate,()->editable||candidate==Tool.PAN);y+=22;
         }
-        icon(x,y,"palette",tr("Cor, espessura e fonte","Color, stroke and font"),()->openDialog(Dialog.PROPERTIES,tr("Propriedades","Properties")),()->false,()->editable);x+=24;
         button(x,y,22,21,"…",null,()->openDialog(Dialog.TOOLS,tr("Ferramentas","Tools")),()->false,()->true,null);
-        int right=panelX+panelW;
-        icon(right-74,panelY+1,"invite",tr("Acesso e uniões","Access and merges"),()->openDialog(Dialog.ACCESS,tr("Acesso ao documento","Document access")),()->false,()->true);
-        button(right-50,panelY+1,22,20,"?",null,()->openDialog(Dialog.HELP,tr("Controles","Controls")),()->false,()->true,null);
-        icon(right-26,panelY+1,"close",tr("Fechar · Esc","Close · Esc"),this::onClose,()->false,()->true);
+        x=layout.rightRail().x()+1;y=layout.rightRail().y()+2;
+        icon(x,y,"invite",tr("Acesso e uniões","Access and merges"),()->openDialog(Dialog.ACCESS,tr("Acesso ao documento","Document access")),()->false,()->true);y+=22;
+        button(x,y,22,20,"?",null,()->openDialog(Dialog.HELP,tr("Controles","Controls")),()->false,()->true,null);y+=22;
+        icon(x,y,"close",tr("Fechar · Esc","Close · Esc"),this::onClose,()->false,()->true);y+=26;
+        icon(x,y,"palette",tr("Cor, espessura e fonte","Color, stroke and font"),()->openDialog(Dialog.PROPERTIES,tr("Propriedades","Properties")),()->false,()->editable);
+        attachInlineFocus();
     }
+    private void attachInlineFocus(){if(inline!=null&&inline.active&&editable&&dialog==Dialog.NONE){if(!children().contains(inline))addWidget(inline);setFocused(inline);}}
     private void button(int x, int y, int w, int h, String text, String sprite, Runnable action,
                         java.util.function.BooleanSupplier selected, java.util.function.BooleanSupplier enabled, Integer swatch) {
         addRenderableWidget(new CanvasButton(x, y, Math.max(20,w), Math.max(20,h), text, sprite, ()->{if(inline!=null&&inline.active)finishInline();EditorPreferences.feedback(false);action.run();}, selected, enabled, swatch));
@@ -170,9 +185,9 @@ public final class CanvasScreen extends Screen {
 
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mouseX,int mouseY,float delta){
         g.fill(panelX,panelY,panelX+panelW,panelY+panelH,PAPER);drawCanvas(g,mouseX,mouseY);
-        g.fill(panelX,panelY,panelX+panelW,panelY+45,0xffeae4d6);g.outline(panelX,panelY,panelW,panelH,BORDER);
-        String name=string(state,"name","Canvas Desk");g.text(font,font.plainSubstrByWidth(name,Math.max(20,panelW-85)),panelX+7,panelY+7,INK,false);
-        if(mouseY>=panelY&&mouseY<panelY+21&&mouseX>=panelX&&mouseX<panelX+panelW-78)g.setTooltipForNextFrame(Component.literal(owner?tr("Clique para renomear","Click to rename"):name),mouseX,mouseY);
+        g.fill(panelX,panelY,panelX+panelW,panelY+20,0xffeae4d6);g.outline(panelX,panelY,panelW,panelH,BORDER);
+        String name=string(state,"name","Canvas Desk");g.text(font,font.plainSubstrByWidth(name,layout.title().w()),layout.title().x(),panelY+6,INK,false);
+        if(layout.title().contains(mouseX,mouseY))g.setTooltipForNextFrame(Component.literal(owner?tr("Clique para renomear","Click to rename"):name),mouseX,mouseY);
         g.fill(panelX+1,viewport.bottom,panelX+panelW-1,panelY+panelH-1,0xffeae4d6);
         boolean pending=saving||!textQueue.isEmpty()||inline!=null&&inline.dirty();
         String info=surfaceUpdating?tr("Atualizando superfície…","Updating surface…"):pending?tr("Gravando…","Saving…"):textOverflow?tr("Parte do texto aguarda superfície","Part of the text needs more surface"):System.currentTimeMillis()<messageUntil?message:
@@ -182,6 +197,7 @@ public final class CanvasScreen extends Screen {
         if(dialog!=Dialog.NONE)drawDialog(g,mouseX,mouseY);super.extractRenderState(g,mouseX,mouseY,delta);
     }
     private SurfaceLayout.Rect elementRect(CanvasElementView e){
+        if(e.type.equals("MATERIALS"))return new SurfaceLayout.Rect(e.x,e.y,e.x+e.w,e.y+MaterialsLayout.of(font,e).height());
         if(e.type.equals("TEXT")&&font!=null){CanvasTextLayout l=CanvasTextLayout.of(font,e);return new SurfaceLayout.Rect(e.x,e.y,e.x+l.width(),e.y+l.height());}
         return new SurfaceLayout.Rect(e.x,e.y,e.x+Math.max(1,e.w),e.y+Math.max(1,e.h));
     }
@@ -214,7 +230,7 @@ public final class CanvasScreen extends Screen {
                     for(double y=Math.floor(viewport.documentY(top)/grid)*grid;viewport.screenY(y)<bottom;y+=grid)g.fill((int)viewport.screenX(x),(int)viewport.screenY(y),(int)viewport.screenX(x)+1,(int)viewport.screenY(y)+1,gridColor);
                 for(String id:paintTiles.getOrDefault(tile.id(),List.of())){
                     if(dragPreview.containsKey(id)||erased.contains(id)||inline!=null&&inline.id.equals(id))continue;
-                    CanvasElementView e=shown.get(id);if(e!=null)CanvasPainter.paint(g,font,viewport,e,shown);
+                    CanvasElementView e=shown.get(id);if(e!=null){if(e.type.equals("EMBED"))activateEmbed(e);CanvasPainter.paint(g,font,viewport,e,shown);}
                 }
                 for(var e:dragPreview.values())if(elementRect(e).intersects(paper))CanvasPainter.paint(g,font,viewport,e,shown);
                 if(draft!=null)CanvasPainter.paint(g,font,viewport,new CanvasElementView(draft),shown);
@@ -229,6 +245,10 @@ public final class CanvasScreen extends Screen {
         if(drag==Drag.BOX){int x1=(int)viewport.screenX(Math.min(startX,currentX)),y1=(int)viewport.screenY(Math.min(startY,currentY)),x2=(int)viewport.screenX(Math.max(startX,currentX)),y2=(int)viewport.screenY(Math.max(startY,currentY));g.outline(x1,y1,x2-x1,y2-y1,ACCENT);}
         if(!connectorStart.isEmpty()&&shown.containsKey(connectorStart)){var e=shown.get(connectorStart);CanvasPainter.line(g,viewport.screenX(e.centerX()),viewport.screenY(e.centerY()),mouseX,mouseY,2,ACCENT);}
         g.disableScissor();
+        if(dialog==Dialog.NONE&&viewport.contains(mouseX,mouseY)){
+            double mx=viewport.documentX(mouseX),my=viewport.documentY(mouseY);var over=hit(mx,my);
+            if(over!=null&&over.type.equals("MATERIALS"))for(var cell:MaterialsLayout.of(font,over).cells())if(mx>=over.x+cell.x()&&mx<=over.x+cell.x()+cell.size()&&my>=over.y+cell.y()&&my<=over.y+cell.quantityY()+9){g.setTooltipForNextFrame(font,MaterialIcons.stack(cell.item().id()),mouseX,mouseY);break;}
+        }
     }
     private void fillDocument(GuiGraphicsExtractor g,SurfaceLayout.Rect r,int color){g.fill((int)Math.floor(viewport.screenX(r.minX())),(int)Math.floor(viewport.screenY(r.minY())),(int)Math.ceil(viewport.screenX(r.maxX())),(int)Math.ceil(viewport.screenY(r.maxY())),color);}
     private Map<String, CanvasElementView> shownElements() {
@@ -239,7 +259,7 @@ public final class CanvasScreen extends Screen {
     }
 
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (dialog != Dialog.NONE) return super.mouseClicked(event, doubleClick);
+        if (dialog != Dialog.NONE) {boolean used=super.mouseClicked(event,doubleClick);if(getFocused()!=null&&!children().contains(getFocused())){clearFocus();if(textField!=null)setFocused(textField);else if(dialog==Dialog.MATERIALS&&materialsEditor!=null)setFocused(materialsEditor.initialFocus());else attachInlineFocus();}return used;}
         if(inline!=null&&inline.active&&event.button()==InputConstants.MOUSE_BUTTON_LEFT){
             double x=viewport.documentX(event.x()),y=viewport.documentY(event.y());
             if(viewport.contains(event.x(),event.y())&&onSurface(x,y)&&elementRect(inline.view()).contains(x,y)){
@@ -252,7 +272,7 @@ public final class CanvasScreen extends Screen {
             if (textField != null) setFocused(textField);
             return true;
         }
-        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && event.y()>=panelY && event.y()<panelY+21 && event.x()>=panelX && event.x()<panelX+panelW-78 && owner) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && layout.title().contains(event.x(),event.y()) && owner) {
             openDialog(Dialog.RENAME, tr("Nome do documento", "Document name")); return true;
         }
         if (!viewport.contains(event.x(), event.y())) return true;
@@ -266,6 +286,11 @@ public final class CanvasScreen extends Screen {
         if (!canEdit()) { status(tr("Aguarde a confirmação do servidor", "Wait for server confirmation")); return true; }
         if (tool == Tool.CONNECTOR) { connect(hit); return true; }
         if (tool == Tool.ERASER) { drag = Drag.ERASE; erased.clear(); if (hit != null) erased.add(hit.id); return true; }
+        if(tool==Tool.EMBED||tool==Tool.MATERIALS){
+            textTarget=CanvasElementView.create(tool.name(),currentX,currentY,tool==Tool.MATERIALS?224:320,180,color,thickness);
+            if(tool==Tool.MATERIALS){textTarget.add("items",new JsonArray());materialsEditor=new MaterialsEditor(textTarget);openDialog(Dialog.MATERIALS,"Materiais da construção");}
+            else openDialog(Dialog.EMBED,"Endereço do site ou vídeo");return true;
+        }
         if (tool == Tool.TEXT || tool == Tool.NOTE || tool == Tool.CHECKLIST) {
             textTarget = CanvasElementView.create(tool.name(), currentX, currentY, tool == Tool.CHECKLIST ? 256 : tool == Tool.TEXT ? 160 : 190, 120, color, thickness);
             textTarget.addProperty("fontSize",fontSize);
@@ -287,7 +312,7 @@ public final class CanvasScreen extends Screen {
             }
         }
         if (hit == null) { if (!event.hasShiftDown()) selection.clear(); drag = Drag.BOX; return; }
-        if (doubleClick && isText(hit) && canEdit()) { selection.clear(); selection.add(hit.id); editSelected(); return; }
+        if (doubleClick && (isText(hit)||hit.type.equals("MATERIALS")||hit.type.equals("EMBED"))) { selection.clear(); selection.add(hit.id); editSelected(); return; }
         if (canEdit() && hit.type.equals("CHECKLIST")) {
             int row = CanvasTextLayout.of(font,hit).checkAt(currentX-hit.x,currentY-hit.y);
             if (row >= 0) {
@@ -412,6 +437,7 @@ public final class CanvasScreen extends Screen {
 
     @Override public boolean keyPressed(KeyEvent event) {
         if (dialog != Dialog.NONE) {
+            if(dialog==Dialog.BROWSER&&browserPanel.addressEnter(event,getFocused()))return true;
             if (event.isEscape()) { closeDialog(); return true; }
             if (textField != null && event.hasControlDown() && (event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER)) { saveDialog(); return true; }
             return super.keyPressed(event);
@@ -428,6 +454,14 @@ public final class CanvasScreen extends Screen {
         if (getFocused() != null && (event.isConfirmation() || event.isCycleFocus())) return super.keyPressed(event);
         if (event.key() == InputConstants.KEY_SPACE) { spaceHeld = true; return true; }
         if (event.hasControlDown()) {
+            if(event.key()==InputConstants.KEY_V&&canEdit()){
+                String pasted=minecraft.keyboardHandler.getClipboard().strip();
+                if(br.com.murillo.canvasdesk.core.EmbedSource.isolated(pasted)){
+                    double cx=viewport.documentX((viewport.left+viewport.right)/2.0),cy=viewport.documentY((viewport.top+viewport.bottom)/2.0);
+                    if(!onSurface(cx,cy)&&surface!=null&&!surface.tiles.isEmpty()){var p=surface.tiles.getFirst().paper();cx=p.minX()+8;cy=p.minY()+8;}
+                    JsonObject e=CanvasElementView.create("EMBED",cx,cy,320,180,color,3);e.addProperty("url",pasted);e.addProperty("text",java.net.URI.create(pasted).getHost());submit(List.of(new Change(null,e)));return true;
+                }
+            }
             if (event.key() == InputConstants.KEY_Z && canEdit()) { action(event.hasShiftDown() ? "redo" : "undo"); return true; }
             if (event.key() == InputConstants.KEY_Y && canEdit()) { action("redo"); return true; }
             if (event.isSelectAll()) { selection.clear(); for(var e:elements.values())if(visible(e))selection.add(e.id); selectTool(Tool.SELECT); return true; }
@@ -451,6 +485,7 @@ public final class CanvasScreen extends Screen {
     }
 
     @Override public boolean keyReleased(KeyEvent event) {
+        if(dialog!=Dialog.NONE)return super.keyReleased(event);
         if (event.key() == InputConstants.KEY_SPACE) { spaceHeld = false; return true; }
         return super.keyReleased(event);
     }
@@ -493,8 +528,12 @@ public final class CanvasScreen extends Screen {
     }
 
     private void editSelected() {
-        if (!canEdit() || selection.size() != 1) return;
+        if(selection.size()!=1)return;
         CanvasElementView e = elements.get(selection.iterator().next());
+        if(e==null)return;
+        if(e.type.equals("EMBED")){var entry=focusBrowser(e);if(entry!=null){browserPanel=new BrowserPanel(entry);openDialog(Dialog.BROWSER,"Interagir");}return;}
+        if(!canEdit())return;
+        if(e.type.equals("MATERIALS")){textTarget=e.json.deepCopy();materialsEditor=new MaterialsEditor(textTarget);openDialog(Dialog.MATERIALS,"Materiais da construção");return;}
         if (!isText(e)) return;
         textTarget = e.json.deepCopy();if(e.type.equals("TEXT"))startInline(textTarget);else openDialog(Dialog.TEXT,tr("Editar texto","Edit text"));
     }
@@ -502,7 +541,8 @@ public final class CanvasScreen extends Screen {
 
     private void startInline(JsonObject value){
         if(inline!=null&&(inline.dirty()||!textQueue.isEmpty()||saving)){status(tr("Aguarde a gravação do texto anterior","Wait for the previous text to save"));return;}
-        inline=new InlineTextEditor(font,value);textBase=elements.get(inline.id);selection.clear();selection.add(inline.id);clearFocus();
+        if(inline!=null){inline.setFocused(false);removeWidget(inline);}
+        inline=new InlineTextEditor(font,value);textBase=elements.get(inline.id);selection.clear();selection.add(inline.id);clearFocus();attachInlineFocus();
     }
     private void beforeInlineInput(){if(inline!=null&&inline.dirty()&&System.currentTimeMillis()-inline.lastInput>=750)flushInline(true);}
     private void flushInline(boolean endBurst){
@@ -516,7 +556,7 @@ public final class CanvasScreen extends Screen {
         if(endBurst)inline.group="";
         sendNextText();
     }
-    private void finishInline(){if(inline==null)return;inline.active=false;textSelecting=false;flushInline(true);}
+    private void finishInline(){if(inline==null)return;inline.active=false;inline.setFocused(false);if(getFocused()==inline)clearFocus();textSelecting=false;flushInline(true);}
     private void sendNextText(){
         if(saving||surfaceUpdating||surface==null||inline==null||inline.conflict||!editable||textQueue.isEmpty())return;
         inFlightText=textQueue.removeFirst();JsonObject value=inFlightText.value;
@@ -570,7 +610,7 @@ public final class CanvasScreen extends Screen {
             String id = change.before == null ? string(change.after, "id", "") : change.before.id;
             JsonObject item = new JsonObject(); item.addProperty("id", id); item.addProperty("expectedRevision", change.before == null ? -1 : change.before.revision);
             item.add("after", change.after == null ? JsonNull.INSTANCE : change.after.deepCopy()); operations.add(item);
-            if (change.after == null) elements.remove(id); else elements.put(id, new CanvasElementView(change.after));
+            if (change.after == null) elements.remove(id); else if(change.before==null||!change.before.type.equals("EMBED")||change.before.url.equals(string(change.after,"url",""))) elements.put(id, new CanvasElementView(change.after));
         }
         request.add("changes", operations);rebuildPaintIndex(); saving = true; send.accept(request);
     }
@@ -618,6 +658,10 @@ public final class CanvasScreen extends Screen {
         if(surface!=null){var b=surface.bounds;viewport.fitBounds(b.minX(),b.minY(),b.maxX(),b.maxY());}
         else viewport.fitBounds(originX,originY,originX+256,originY+256);queueView();
     }
+    private void updateFitLimits(){
+        if(surface!=null){var b=surface.bounds;viewport.setFitBounds(b.minX(),b.minY(),b.maxX(),b.maxY());}
+        else viewport.setFitBounds(originX,originY,originX+256,originY+256);
+    }
     private CanvasElementView hit(double x, double y) {
         if(!onSurface(x,y))return null;
         List<CanvasElementView> candidates = new ArrayList<>(elements.values());
@@ -646,11 +690,14 @@ public final class CanvasScreen extends Screen {
     private void openDialog(Dialog next, String title) {
         if(next!=Dialog.CONFLICT)finishInline();cancelGesture(); dialog = next; dialogTitle = title; accessScroll = 0; textField = null; rebuildControls();
     }
-    private void closeDialog() { if(dialog==Dialog.CONFLICT)return;dialog = Dialog.NONE; textField = null; textTarget = null; mergeTarget = null; rebuildControls(); }
+    private void closeDialog() { if(dialog==Dialog.CONFLICT)return;if(dialog==Dialog.PARTY&&browserPanel!=null){dialog=Dialog.BROWSER;partyMenu=null;rebuildControls();return;}if(browserPanel!=null){browserPanel.close();browserPanel=null;}dialog = Dialog.NONE; textField = null; textTarget = null; mergeTarget = null;materialsEditor=null; rebuildControls(); }
 
     private void buildDialog(String previousText) {
+        if(dialog==Dialog.MATERIALS){var initial=materialsEditor.build(width,height,w->addRenderableWidget(w),this::rebuildControls,after->{CanvasElementView before=elements.get(string(after,"id",""));selection.clear();selection.add(string(after,"id",""));submit(List.of(new Change(before,after)));closeDialog();tool=Tool.SELECT;},this::closeDialog);setInitialFocus(initial);return;}
+        if(dialog==Dialog.PARTY){partyMenu.build(width,height,w->addRenderableWidget(w),this::closeDialog,()->{dialog=Dialog.BROWSER;closeDialog();});return;}
+        if(dialog==Dialog.BROWSER){browserPanel.build(width,height,w->addRenderableWidget(w),this::closeDialog,url->{var before=elements.get(browserPanel.elementId());if(before!=null){var after=before.json.deepCopy();after.addProperty("url",url);submit(List.of(new Change(before,after)));}},()->{browserPanel.setFocused(false);partyMenu=new PartyMenu(browserPanel.target());openDialog(Dialog.PARTY,"Party do quadro");},this::canEdit);addWidget(browserPanel);setFocused(browserPanel);return;}
         dialogW = Math.min(width - 20, dialog == Dialog.ACCESS || dialog == Dialog.MERGE || dialog==Dialog.HELP ? 470 : 390);
-        dialogH = Math.min(height - 16, dialog == Dialog.ACCESS || dialog == Dialog.MERGE || dialog==Dialog.HELP ? 320 : dialog == Dialog.HELP ? 235 : dialog == Dialog.TEXT ? 230 : 120);
+        dialogH = Math.min(height - 16, dialog == Dialog.ACCESS || dialog == Dialog.MERGE || dialog==Dialog.HELP ? 320 : dialog == Dialog.TEXT ? 230 : dialog==Dialog.EMBED?150:120);
         dialogX = (width - dialogW) / 2; dialogY = (height - dialogH) / 2;
         if(dialog==Dialog.TOOLS||dialog==Dialog.PROPERTIES||dialog==Dialog.CONFLICT){dialogH=Math.min(height-16,dialog==Dialog.CONFLICT?170:190);dialogY=(height-dialogH)/2;}
         if(dialog==Dialog.TOOLS){
@@ -663,25 +710,26 @@ public final class CanvasScreen extends Screen {
             button(x,y,24,22,"#",null,()->openDialog(Dialog.COLOR,tr("Cor hexadecimal","Hex color")),()->false,this::canEdit,null);
             x=dialogX+12;y+=32;for(int candidate:new int[]{1,3,6,10}){button(x,y,30,22,Integer.toString(candidate),null,()->setThickness(candidate),()->thickness==candidate,this::canEdit,null);x+=34;}
             button(dialogX+12,y+32,90,22,tr("Fonte 8–96","Font 8–96"),null,()->openDialog(Dialog.FONT,tr("Tamanho da fonte","Font size")),()->false,this::canEdit,null);
-            button(dialogX+108,y+32,90,22,tr("Editar texto","Edit text"),null,()->{dialog=Dialog.NONE;rebuildControls();editSelected();},()->false,()->canEdit()&&selection.size()==1&&isText(elements.get(selection.iterator().next())),null);
+            button(dialogX+108,y+32,90,22,tr("Editar conteúdo","Edit content"),null,()->{var selected=selection.size()==1?elements.get(selection.iterator().next()):null;if(selected!=null&&selected.type.equals("EMBED")){textTarget=selected.json.deepCopy();openDialog(Dialog.EMBED,"Endereço do embed");}else{dialog=Dialog.NONE;rebuildControls();editSelected();}},()->false,()->canEdit()&&selection.size()==1,null);
             button(dialogX+dialogW-79,dialogY+dialogH-27,66,21,tr("Fechar","Close"),null,this::closeDialog,()->false,()->true,null);return;
         }
         if(dialog==Dialog.CONFLICT){
             button(dialogX+12,dialogY+dialogH-31,Math.min(150,(dialogW-30)/2),22,tr("Copiar rascunho","Copy draft"),null,()->{if(inline!=null)minecraft.keyboardHandler.setClipboard(inline.input.value());status(tr("Rascunho copiado","Draft copied"));},()->false,()->true,null);
             button(dialogX+dialogW/2,dialogY+dialogH-31,dialogW/2-12,22,tr("Recarregar","Reload"),null,()->{inline=null;textQueue.clear();inFlightText=null;actionAfterText="";closing=false;dialog=Dialog.NONE;rebuildControls();},()->false,()->!saving,null);return;
         }
-        if (dialog == Dialog.TEXT || dialog == Dialog.COLOR || dialog == Dialog.FONT || dialog == Dialog.RENAME) {
-            int fieldHeight = dialogH - 75;
+        if (dialog == Dialog.TEXT || dialog == Dialog.COLOR || dialog == Dialog.FONT || dialog == Dialog.RENAME || dialog==Dialog.EMBED) {
+            int fieldHeight = dialog==Dialog.EMBED?20:dialogH - 75;
             textField = addRenderableWidget(MultiLineEditBox.builder().setX(dialogX + 12).setY(dialogY + 31)
                 .setShowBackground(true).setShowDecorations(true).setTextShadow(false).setTextColor(0xffe9e5db)
                 .setPlaceholder(Component.literal(dialog == Dialog.TEXT ? tr("Escreva aqui…", "Write here…") : ""))
                 .build(font, dialogW - 24, fieldHeight, Component.literal(dialogTitle)));
             // Large enough for real documents, bounded per element to keep network operations manageable.
-            textField.setCharacterLimit(dialog == Dialog.TEXT ? 32768 : dialog == Dialog.RENAME ? 80 : 7);
+            textField.setCharacterLimit(dialog == Dialog.TEXT ? 32768 : dialog==Dialog.EMBED?4096:dialog == Dialog.RENAME ? 80 : 7);
             if (dialog != Dialog.TEXT) textField.setLineLimit(1);
             String initial = previousText != null ? previousText : dialog == Dialog.TEXT ? string(textTarget, "text", "")
-                : dialog == Dialog.COLOR ? String.format("#%06X", color) : dialog==Dialog.FONT?Double.toString(fontSize):string(state, "name", "Canvas Desk");
+                : dialog==Dialog.EMBED?string(textTarget,"url",""):dialog == Dialog.COLOR ? String.format("#%06X", color) : dialog==Dialog.FONT?Double.toString(fontSize):string(state, "name", "Canvas Desk");
             textField.setValue(initial);
+            if(dialog==Dialog.EMBED){var title=new net.minecraft.client.gui.components.EditBox(font,dialogX+12,dialogY+67,dialogW-24,20,Component.literal("Título do embed"));title.setHint(Component.literal("Título (opcional)"));title.setMaxLength(256);title.setValue(string(textTarget,"text",""));title.setResponder(v->textTarget.addProperty("text",v));addRenderableWidget(title);}
             setInitialFocus(textField);
             button(dialogX + dialogW - 151, dialogY + dialogH - 30, 68, 20, tr("Cancelar", "Cancel"), null, this::closeDialog, () -> false, () -> true, null);
             button(dialogX + dialogW - 78, dialogY + dialogH - 30, 66, 20, tr("Salvar", "Save"), null, this::saveDialog, () -> false, () -> editable && !saving, null);
@@ -709,6 +757,7 @@ public final class CanvasScreen extends Screen {
     private void saveDialog() {
         if (textField == null || !canEdit()) return;
         String value = textField.getValue();
+        if(dialog==Dialog.EMBED){try{String url=br.com.murillo.canvasdesk.core.EmbedSource.validate(value);JsonObject after=textTarget.deepCopy();after.addProperty("url",url);if(string(after,"text","").isBlank())after.addProperty("text",java.net.URI.create(url).getHost());selection.clear();selection.add(string(after,"id",""));submit(List.of(new Change(elements.get(string(after,"id","")),after)));closeDialog();tool=Tool.SELECT;}catch(RuntimeException e){dialogTitle=e.getMessage();}return;}
         if(dialog==Dialog.FONT) {
             try{double next=Double.parseDouble(value.strip().replace(',','.'));if(!Double.isFinite(next)||next<8||next>96)throw new NumberFormatException();
                 setFontSize(next);closeDialog();}
@@ -742,6 +791,9 @@ public final class CanvasScreen extends Screen {
     }
 
     private void drawDialog(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+        if(dialog==Dialog.MATERIALS){materialsEditor.paint(g,mouseX,mouseY);return;}
+        if(dialog==Dialog.PARTY){partyMenu.paint(g);return;}
+        if(dialog==Dialog.BROWSER){browserPanel.paint(g);return;}
         g.fill(0, 0, width, height, 0x990f100e);
         g.fill(dialogX, dialogY, dialogX + dialogW, dialogY + dialogH, PAPER);
         g.outline(dialogX, dialogY, dialogW, dialogH, 0xff967a57);
@@ -844,10 +896,18 @@ public final class CanvasScreen extends Screen {
         sendClose(); minecraft.setScreenAndShow(null);
     }
     @Override public void removed() {
+        if(browserPanel!=null)browserPanel.close();
+        clearFocus();if(inline!=null)inline.setFocused(false);
         if(inline!=null&&(inline.dirty()||inFlightText!=null||!textQueue.isEmpty()))EditorPreferences.recover(string(state,"workspace",""),inline.snapshot());sendClose();
     }
     private void sendClose() {
         if (closeSent) return;
         closeSent = true; JsonObject request = new JsonObject(); request.addProperty("action", "close"); send.accept(request);
     }
+    private br.com.murillo.canvasdesk.client.media.BrowserTexture.Entry activateEmbed(CanvasElementView e){
+        if(!state.has("anchorPos")||!state.has("moduleId"))return null;
+        return br.com.murillo.canvasdesk.client.media.BrowserTexture.visible(string(state,"workspace",""),e,net.minecraft.core.BlockPos.of(state.get("anchorPos").getAsLong()),state.get("moduleId").getAsString());
+    }
+    private br.com.murillo.canvasdesk.client.media.BrowserTexture.Entry focusBrowser(CanvasElementView e){if(!state.has("anchorPos")||!state.has("moduleId"))return null;return br.com.murillo.canvasdesk.client.media.BrowserTexture.activate(string(state,"workspace",""),e,net.minecraft.core.BlockPos.of(state.get("anchorPos").getAsLong()),state.get("moduleId").getAsString());}
+    public void focusEmbed(String id){if(!initialized||surfaceUpdating||!elements.containsKey(id)){requestedEmbed=id;return;}selection.clear();selection.add(id);editSelected();}
 }

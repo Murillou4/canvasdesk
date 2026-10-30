@@ -20,6 +20,6 @@ public abstract class AssistedInteractionGuard {
     private void canvasdesk$validatePinnedPlacement(ServerPlayer player,Level level,ItemStack stack,
                                                    InteractionHand hand,BlockHitResult hit,
                                                    CallbackInfoReturnable<InteractionResult> result){
-        if(!DeskBlockItem.dispatchStillValid(player,hand))result.setReturnValue(InteractionResult.FAIL);
+        if(!DeskBlockItem.dispatchStillValid(player,hand)||!br.com.murillo.canvasdesk.server.ChecklistInteraction.valid(player,hand))result.setReturnValue(InteractionResult.FAIL);
     }
 }

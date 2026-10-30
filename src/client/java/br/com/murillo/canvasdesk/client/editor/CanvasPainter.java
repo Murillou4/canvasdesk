@@ -21,6 +21,21 @@ public final class CanvasPainter {
         g.pose().translate((float) v.screenX(e.x), (float) v.screenY(e.y)).scale(scale, scale);
         double thickness = Math.max(e.thickness, 0.8 / v.zoom);
         switch (e.type) {
+            case "MATERIALS" -> {
+                var layout=MaterialsLayout.of(font,e);g.fill(0,0,(int)e.w,(int)layout.height(),0xfff7f5ec);g.fill(0,0,3,(int)layout.height(),ink);
+                g.pose().pushMatrix();g.pose().scale((float)layout.scale(),(float)layout.scale());int y=8;
+                for(var text:layout.title()){g.text(font,text,8,y,ink,false);y+=12;}g.pose().popMatrix();
+                for(var cell:layout.cells()){
+                    if(v.screenX(e.x+cell.x()+cell.size())<v.left||v.screenX(e.x+cell.x())>v.right||v.screenY(e.y+cell.quantityY()+9*layout.scale())<v.top||v.screenY(e.y+cell.y())>v.bottom)continue;
+                    g.pose().pushMatrix();g.pose().translate((float)cell.x(),(float)cell.y()).scale((float)(cell.size()/16),(float)(cell.size()/16));g.item(MaterialIcons.stack(cell.item().id()),0,0);g.pose().popMatrix();
+                    g.pose().pushMatrix();g.pose().translate((float)(cell.x()+cell.size()/2),(float)cell.quantityY()).scale((float)layout.scale(),(float)layout.scale());String count=Integer.toString(cell.item().quantidade());g.text(font,count,-font.width(count)/2,0,ink,false);g.pose().popMatrix();
+                }
+            }
+            case "EMBED" -> {
+                g.fill(0,0,(int)e.w,(int)e.h,0xffe7e2d7);g.text(font,font.plainSubstrByWidth(e.text.isBlank()?e.url:e.text,Math.max(1,(int)e.w-16)),8,8,ink,false);
+                g.centeredText(font,"▶",(int)e.w/2,(int)e.h/2,ink);
+                br.com.murillo.canvasdesk.client.media.BrowserTexture.paint(g,e);
+            }
             case "STROKE" -> {
                 if (e.points.size() == 1) {
                     CanvasElementView.Point p = e.points.getFirst();

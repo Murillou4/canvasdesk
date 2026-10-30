@@ -69,6 +69,7 @@ public final class DeskBlock extends BaseEntityBlock {
                 && level.getBlockEntity(pos) instanceof DeskBlockEntity desk) DeskServer.get(serverLevel.getServer()).placed(serverLevel,desk,player,stack);
     }
     @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+        if(player instanceof ServerPlayer serverPlayer&&br.com.murillo.canvasdesk.server.ChecklistInteraction.consume(serverPlayer,pos))return InteractionResult.SUCCESS;
         if (player instanceof ServerPlayer serverPlayer && level.getBlockEntity(pos) instanceof DeskBlockEntity desk)
             DeskServer.get(serverPlayer.level().getServer()).open(serverPlayer, desk);
         return InteractionResult.SUCCESS;

@@ -36,6 +36,7 @@ public final class DeskServer {
     private static final Map<MinecraftServer, DeskServer> INSTANCES = new ConcurrentHashMap<>();
     private final MinecraftServer server;
     public final CanvasStore store;
+    private final SharedMedia media;
     private final Path indexFile;
     private final Map<String,Module> modules = new LinkedHashMap<>();
     private final Map<String,DeskBlockEntity> loaded = new HashMap<>();
@@ -53,12 +54,17 @@ public final class DeskServer {
     private final Set<SurfaceLayout> dirtySurfaces=Collections.newSetFromMap(new IdentityHashMap<>());
     private final Map<UUID,LinkedHashMap<UUID,JsonObject>> assistReceipts=new HashMap<>();
     private final Map<UUID,Long> assistTicks=new HashMap<>();
+    private final Map<UUID,LinkedHashMap<UUID,JsonObject>> checklistReceipts=new HashMap<>();
+    private final Map<UUID,Long> checklistTicks=new HashMap<>();
+    private final Map<UUID,LinkedHashSet<Long>> tilePush=new LinkedHashMap<>();
+    private final Map<UUID,BlockPos> surfaceWatchers=new HashMap<>();
 
     private DeskServer(MinecraftServer server) throws IOException {
         this.server=server;
         Path directory=server.getWorldPath(LevelResource.ROOT).resolve("canvasdesk");
         Files.createDirectories(directory);
         store=new CanvasStore(directory.resolve("documents"));
+        media=new SharedMedia(server,store);
         indexFile=directory.resolve("modules.json");
         if(Files.exists(indexFile)) {
             JsonObject root=JsonParser.parseString(Files.readString(indexFile)).getAsJsonObject();
@@ -165,6 +171,7 @@ public final class DeskServer {
                     double dx=desk.tileX+a[0]+256.0*BoardPlane.horizontal(facing,desk.getBlockPos(),neighbor.getBlockPos())-neighbor.tileX-b[0];
                     double dy=desk.tileY+a[1]+256.0*BoardPlane.vertical(facing,BoardPlane.horizontal(desk.getBlockState()),desk.getBlockPos(),neighbor.getBlockPos())-neighbor.tileY-b[1];
                     JsonObject result=store.requestMerge(desk.workspace,neighbor.workspace,dx,dy,actor.getUUID());
+                    if(result.has("merged"))media.merged(store.resolve(desk.workspace));
                     actor.sendSystemMessage(Component.literal("Canvas Desk: "+message(result,"Conexão preparada; donos podem aprovar na opção Compartilhar.")));
                 }
             }catch(RuntimeException e){actor.sendSystemMessage(Component.literal("Canvas Desk: "+e.getMessage()));}
@@ -246,7 +253,12 @@ public final class DeskServer {
             request=JsonParser.parseString(data).getAsJsonObject();
             String action=request.get("action").getAsString();
             if(action.equals("tiles")){sendTiles(player,request);return;}
+            if(action.equals("partyJoin")||action.equals("partyLeave")||action.equals("partyPoll")){media.party(player,request);return;}
+            if(action.equals("worldSurface")){worldSurface(player,request);return;}
+            if(action.equals("mediaSubscribe")||action.equals("mediaControl")){media.receive(player,request);return;}
             if(action.equals("assistPlace")){assistPlace(player,request);return;}
+            if(action.equals("worldChecklist")){worldChecklist(player,request);return;}
+            if(action.equals("worldMedia")){media.worldControl(player,request);return;}
             Session session=sessions.get(player.getUUID());
             if(session==null || !valid(player,session)) {closeSession(player);return;}
             if(session.lastTick==ticks && ++session.actions>30)throw new IllegalArgumentException("Muitas ações; tente novamente");
@@ -259,6 +271,8 @@ public final class DeskServer {
             }
             if(action.equals("edit")){validateSurfaceEdit(session,request);session.focusElement=UUID.fromString(request.getAsJsonArray("changes").get(0).getAsJsonObject().get("id").getAsString());}
             JsonObject result=store.action(session.workspace,player.getUUID(),request);
+            if(result.has("merged"))media.merged(store.resolve(session.workspace));
+            else if(result.get("ok").getAsBoolean()&&(action.equals("edit")||action.equals("undo")||action.equals("redo")))media.changed(store.resolve(session.workspace));
             if(action.equals("approveMerge") && result.get("ok").getAsBoolean()) {
                 for(String key:modules.keySet())queue(key);
             }
@@ -317,6 +331,78 @@ public final class DeskServer {
         }
         if(operation!=null){var receipts=assistReceipts.computeIfAbsent(player.getUUID(),id->new LinkedHashMap<>());receipts.put(operation,response.deepCopy());if(receipts.size()>64)receipts.remove(receipts.keySet().iterator().next());}
         send(player,response);
+    }
+    private void worldChecklist(ServerPlayer player,JsonObject request){
+        JsonObject response=new JsonObject();response.addProperty("kind","checklist");UUID operation=null;
+        BlockPos pos=null;
+        try{
+            operation=UUID.fromString(request.get("operationId").getAsString());response.addProperty("operationId",operation.toString());
+            var receipts=checklistReceipts.computeIfAbsent(player.getUUID(),id->new LinkedHashMap<>());
+            if(receipts.containsKey(operation)){send(player,receipts.get(operation));return;}
+            if(Objects.equals(checklistTicks.get(player.getUUID()),ticks))throw new IllegalArgumentException("Aguarde a confirmação da tarefa.");
+            checklistTicks.put(player.getUUID(),ticks);
+            pos=BlockPos.of(request.get("pos").getAsLong());
+            var hit=validateChecklist(player,request,pos);
+            final BlockPos target=pos;final JsonObject[] applied={null};
+            ChecklistInteraction.dispatch(player,hit,()->{
+                try{return validateChecklist(player,request,target)!=null;}catch(RuntimeException e){return false;}
+            },()->{
+                var desk=(DeskBlockEntity)player.level().getBlockEntity(target);
+                JsonObject action=request.deepCopy();action.addProperty("action","setChecklistItem");
+                applied[0]=store.action(desk.workspace,player.getUUID(),action);
+            });
+            if(applied[0]==null)throw new IllegalArgumentException("A interação foi recusada ou a superfície mudou.");
+            response.addProperty("ok",applied[0].get("ok").getAsBoolean());response.add("message",applied[0].get("message"));
+            if(response.get("ok").getAsBoolean())refreshAll(null);
+        }catch(RuntimeException error){response.addProperty("ok",false);response.addProperty("message",error.getMessage()==null?"Tarefa indisponível.":error.getMessage());}
+        if(operation!=null){var receipts=checklistReceipts.computeIfAbsent(player.getUUID(),id->new LinkedHashMap<>());receipts.put(operation,response.deepCopy());if(receipts.size()>64)receipts.remove(receipts.keySet().iterator().next());}
+        send(player,response);
+        // A bounded queue pushes affected watched tiles next tick; no full-board raster/packet burst.
+        if(pos!=null)tilePush.computeIfAbsent(player.getUUID(),id->new LinkedHashSet<>()).add(pos.asLong());
+        if(response.get("ok").getAsBoolean())queueChecklistTiles(request);
+    }
+    private void queueChecklistTiles(JsonObject request){
+        UUID workspace=UUID.fromString(request.get("workspace").getAsString());
+        JsonObject e=store.element(workspace,UUID.fromString(request.get("elementId").getAsString()));if(e==null)return;
+        double x=e.get("x").getAsDouble(),y=e.get("y").getAsDouble(),w=e.get("w").getAsDouble();
+        double h=Math.max(e.get("h").getAsDouble(),(e.get("text").getAsString().length()+1)*12*e.get("fontSize").getAsDouble()/9+18);
+        for(var watched:tileRevisions.entrySet()){
+            ServerPlayer viewer=server.getPlayerList().getPlayer(watched.getKey());if(viewer==null)continue;
+            for(String sent:watched.getValue().keySet()){
+                BlockPos pos=BlockPos.of(Long.parseLong(sent.substring(0,sent.indexOf(':'))));Module m=modules.get(key(viewer.level(),pos));
+                if(m==null)continue;
+                try{
+                    UUID source=UUID.fromString(m.workspace);if(!store.resolve(source).equals(workspace))continue;
+                    double[] shift=store.projectionOffset(source);double tx=m.tileX+shift[0],ty=m.tileY+shift[1];
+                    if(tx<=x+w&&tx+256>=x&&ty<=y+h&&ty+256>=y)tilePush.computeIfAbsent(viewer.getUUID(),id->new LinkedHashSet<>()).add(pos.asLong());
+                }catch(RuntimeException unavailable){/* A foreign-world reference has no local document to refresh. */}
+            }
+        }
+    }
+    private net.minecraft.world.phys.BlockHitResult validateChecklist(ServerPlayer player,JsonObject request,BlockPos pos){
+        if(player.isSpectator()||player.isShiftKeyDown()||!player.getMainHandItem().isEmpty()||DeskPlacement.chosenHand(player)!=null
+                ||!player.level().hasChunkAt(pos)||!player.level().getWorldBorder().isWithinBounds(pos)||!player.mayInteract(player.level(),pos))
+            throw new IllegalArgumentException("Aproxime-se do quadro com a mão vazia.");
+        if(!(player.level().getBlockEntity(pos) instanceof DeskBlockEntity desk)||desk.workspace==null||!desk.moduleId.toString().equals(request.get("moduleId").getAsString()))
+            throw new IllegalArgumentException("O módulo mudou; confira o quadro.");
+        UUID workspace=store.resolve(desk.workspace);double[] shift=store.projectionOffset(desk.workspace);
+        double ox=desk.tileX+shift[0],oy=desk.tileY+shift[1];
+        if(!workspace.toString().equals(request.get("workspace").getAsString())||Math.abs(ox-finite(request,"tileX"))>1e-6||Math.abs(oy-finite(request,"tileY"))>1e-6
+                ||!store.canEdit(workspace,player.getUUID()))throw new IllegalArgumentException("A projeção ou o acesso mudou.");
+        double yaw=finite(request,"yaw"),pitch=finite(request,"pitch");if(pitch< -90||pitch>90)throw new IllegalArgumentException("Mira inválida.");
+        var hit=BoardInteraction.pick(player,pos,Vec3.directionFromRotation((float)pitch,(float)(yaw%360)));
+        if(hit==null)throw new IllegalArgumentException("Mire na caixinha de uma tarefa visível.");
+        JsonObject e=store.element(workspace,UUID.fromString(request.get("elementId").getAsString()));
+        if(e==null||!e.get("type").getAsString().equals("CHECKLIST")||e.get("revision").getAsLong()!=request.get("expectedRevision").getAsLong())
+            throw new IllegalArgumentException("A lista mudou; confira o quadro.");
+        int row=request.get("row").getAsInt();String text=e.get("text").getAsString();
+        if(row<0||row>=text.split("\n",-1).length)throw new IllegalArgumentException("Tarefa inválida.");
+        Vec3 uv=BoardInteraction.coordinates(desk.getBlockState(),pos,hit.getLocation());
+        double x=ox+uv.x*256-e.get("x").getAsDouble(),y=oy+uv.y*256-e.get("y").getAsDouble(),s=e.get("fontSize").getAsDouble()/9;
+        // Font wrapping is client/resource-pack specific. Server validates the box column and bounded card region.
+        double maxHeight=Math.max(e.get("h").getAsDouble(),(text.length()+text.split("\n",-1).length)*12*s+18*s);
+        if(x<7*s||x>21*s||y<7*s||y>maxHeight)throw new IllegalArgumentException("Mire na caixinha, não no texto.");
+        return hit;
     }
     private static double finite(JsonObject o,String key){double value=o.get(key).getAsDouble();if(!Double.isFinite(value)||Math.abs(value)>1e15)throw new IllegalArgumentException("Coordenada inválida");return value;}
     private boolean valid(ServerPlayer player,Session session){
@@ -379,6 +465,7 @@ public final class DeskServer {
             }
             boolean opening=open||session.opening;view.addProperty("kind","state");view.addProperty("open",opening);
             view.addProperty("originX",originX);view.addProperty("originY",originY);
+            view.addProperty("anchorPos",session.pos.asLong());view.addProperty("moduleId",session.module.toString());
             view.addProperty("surfaceUpdating",!ready);
             if(surface!=null){
                 view.addProperty("surfaceRevision",surface.revision);
@@ -415,17 +502,38 @@ public final class DeskServer {
             try {
                 double[] offset=store.projectionOffset(desk.workspace);double x=desk.tileX+offset[0],y=desk.tileY+offset[1];
                 JsonObject tile=store.view(desk.workspace,player.getUUID(),x,y,x+256,y+256);
-                String key=pos.asLong()+":"+tile.get("workspace").getAsString()+":"+x+":"+y+":"+desk.getBlockState().getValue(DeskBlock.COLOR);
+                String key=pos.asLong()+":"+desk.moduleId+":"+tile.get("workspace").getAsString()+":"+x+":"+y+":"+desk.getBlockState().getValue(DeskBlock.COLOR);
                 boolean missing=false;if(request.has("missing"))for(JsonElement value:request.getAsJsonArray("missing"))if(value.getAsLong()==pos.asLong()){missing=true;break;}
                 long rev=tile.get("revision").getAsLong();if(!missing&&Objects.equals(sent.get(key),rev))continue;
-                sent.put(key,rev);tile.addProperty("kind","tile");tile.addProperty("pos",pos.asLong());tile.addProperty("tileX",x);tile.addProperty("tileY",y);tile.addProperty("background",DeskGeometry.color(desk.getBlockState().getValue(DeskBlock.COLOR).getSerializedName()));send(player,tile);
+                sent.put(key,rev);tile.addProperty("kind","tile");tile.addProperty("moduleId",desk.moduleId.toString());tile.addProperty("pos",pos.asLong());tile.addProperty("tileX",x);tile.addProperty("tileY",y);tile.addProperty("background",DeskGeometry.color(desk.getBlockState().getValue(DeskBlock.COLOR).getSerializedName()));send(player,tile);
             }catch(RuntimeException e){CanvasDesk.LOGGER.debug("Tile unavailable {}",pos);}
         }
     }
     public static void send(ServerPlayer player,JsonObject json){for(CanvasPayload part:CanvasPayload.split(json.toString()))ServerPlayNetworking.send(player,part);}
+    public boolean elementOnSurface(ServerPlayer player,BlockPos pos,JsonObject element){SurfaceLayout s=surfaces.get(key(player.level(),pos));return s!=null&&!dirtySurfaces.contains(s)&&ElementFootprint.visible(s,element);}
+    private void worldSurface(ServerPlayer player,JsonObject request){
+        BlockPos pos=BlockPos.of(request.get("pos").getAsLong());
+        if(!player.level().hasChunkAt(pos)||player.distanceToSqr(pos.getX()+.5,pos.getY()+.5,pos.getZ()+.5)>6400)return;
+        if(!(player.level().getBlockEntity(pos) instanceof DeskBlockEntity desk)||desk.workspace==null||!desk.moduleId.toString().equals(request.get("moduleId").getAsString()))return;
+        surfaceWatchers.put(player.getUUID(),pos);SurfaceLayout surface=surfaces.get(key(player.level(),pos));
+        if(surface==null||dirtySurfaces.contains(surface)){requestSurfaceCalculation(key(player.level(),pos));return;}
+        if(request.has("surfaceRevision")&&request.get("surfaceRevision").getAsLong()==surface.revision)return;
+        double[] shift=store.projectionOffset(desk.workspace);JsonObject state=new JsonObject();state.addProperty("kind","worldSurface");state.addProperty("pos",pos.asLong());state.addProperty("moduleId",desk.moduleId.toString());
+        state.addProperty("originX",desk.tileX+shift[0]);state.addProperty("originY",desk.tileY+shift[1]);state.add("surface",surface.toJson());send(player,state);
+    }
 
     public void tick(){
         ticks++;
+        media.tick(ticks);
+        int pushBudget=32;
+        for(var it=tilePush.entrySet().iterator();it.hasNext()&&pushBudget>0;){
+            var entry=it.next();ServerPlayer viewer=server.getPlayerList().getPlayer(entry.getKey());
+            if(viewer==null){it.remove();continue;}
+            JsonArray positions=new JsonArray();var pending=entry.getValue().iterator();
+            while(pending.hasNext()&&pushBudget>0){positions.add(pending.next());pending.remove();pushBudget--;}
+            JsonObject request=new JsonObject();request.add("positions",positions);request.add("missing",positions.deepCopy());sendTiles(viewer,request);
+            if(entry.getValue().isEmpty())it.remove();
+        }
         for(int budget=16;budget>0&&!chunkReconciliations.isEmpty();budget--) {
             PendingChunk job=chunkReconciliations.poll();
             if(job.level.getChunkSource().getChunkNow(job.chunk.getPos().x(),job.chunk.getPos().z())==job.chunk)reconcileChunk(job.level,job.chunk);
@@ -438,13 +546,18 @@ public final class DeskServer {
             String seed=normalizeQueue.poll();Module module=modules.get(seed);
             if(module!=null)try{normalize=new NormalizeJob(module);}catch(RuntimeException ignored){}
         }
-        if(normalize!=null && normalize.step(512)){normalizeQueue.removeIf(normalize.seen::contains);publishSurface(normalize);normalize=null;indexDirty=true;tileRevisions.clear();refreshAll(null);}
+        if(normalize!=null && normalize.step(512)){normalizeQueue.removeIf(normalize.seen::contains);publishSurface(normalize);normalize=null;indexDirty=true;tileRevisions.clear();refreshAll(null);
+            for(var entry:List.copyOf(surfaceWatchers.entrySet())){var viewer=server.getPlayerList().getPlayer(entry.getKey());if(viewer!=null&&viewer.level().getBlockEntity(entry.getValue()) instanceof DeskBlockEntity d){JsonObject r=new JsonObject();r.addProperty("pos",entry.getValue().asLong());r.addProperty("moduleId",d.moduleId.toString());worldSurface(viewer,r);}}
+        }
         if(ticks%20==0) {
             for(var entry:List.copyOf(sessions.entrySet())){ServerPlayer p=server.getPlayerList().getPlayer(entry.getKey());if(p==null)sessions.remove(entry.getKey());else if(!valid(p,entry.getValue()))closeSession(p);}
             assemblers.keySet().removeIf(id->server.getPlayerList().getPlayer(id)==null);
             tileRevisions.keySet().removeIf(id->server.getPlayerList().getPlayer(id)==null);
             assistReceipts.keySet().removeIf(id->server.getPlayerList().getPlayer(id)==null);
             assistTicks.keySet().removeIf(id->server.getPlayerList().getPlayer(id)==null);
+            checklistReceipts.keySet().removeIf(id->server.getPlayerList().getPlayer(id)==null);
+            checklistTicks.keySet().removeIf(id->server.getPlayerList().getPlayer(id)==null);
+            surfaceWatchers.keySet().removeIf(id->server.getPlayerList().getPlayer(id)==null);
             if(indexDirty)saveIndexSafe();
         }
     }
